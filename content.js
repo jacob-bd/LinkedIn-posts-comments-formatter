@@ -16,14 +16,20 @@ function formatText(action) {
         formattedText = `<em>${selectedText}</em>`;
         break;
       case 'bullet':
-        formattedText = `<ul><li>${selectedText}</li></ul>`;
+        formattedText = selectedText.split('\n')
+          .filter(line => line.trim() !== '')
+          .map(line => `<li>${line.trim()}</li>`)
+          .join('');
+        formattedText = `<ul>${formattedText}</ul>`;
         break;
     }
 
-    const span = document.createElement('span');
-    span.innerHTML = formattedText;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = formattedText;
     range.deleteContents();
-    range.insertNode(span);
+    while (tempDiv.firstChild) {
+      range.insertNode(tempDiv.firstChild);
+    }
   }
 }
 
