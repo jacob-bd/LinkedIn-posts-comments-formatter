@@ -1,25 +1,27 @@
 let postInput = null;
 let notificationShown = false;
+let postInputObserver = null;
 
 function detectPostInput() {
   const newPostInput = document.querySelector('.ql-editor');
-  if (newPostInput && newPostInput !== postInput) {
+  if (newPostInput &amp;&amp; newPostInput !== postInput) {
     postInput = newPostInput;
     showNotification();
+    observePostInput();
   }
 }
 
 function showNotification() {
   if (!notificationShown) {
-    chrome.runtime.sendMessage({ action: 'show-notification' });
+    chrome.runtime.sendMessage({action: 'show-notification'});
     notificationShown = true;
   }
 }
 
 function observePostInput() {
-  if (!postInput) return;
+  if (!postInput || postInputObserver) return;
 
-  const observer = new MutationObserver((mutations) => {
+  postInputObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'childList') {
         const selectedText = window.getSelection().toString();
@@ -30,13 +32,18 @@ function observePostInput() {
     });
   });
 
-  observer.observe(postInput, { childList: true });
+  postInputObserver.observe(postInput, {childList: true});
 }
 
 function formatText(action) {
   if (!postInput) return;
 
   const selection = window.getSelection();
+  if (!selection.rangeCount) {
+    console.warn('No text selected.');
+    return;
+  }
+
   const range = selection.getRangeAt(0);
   const selectedText = range.toString();
 
@@ -51,9 +58,9 @@ function formatText(action) {
         break;
       case 'bullet':
         formattedText = selectedText.split('\n')
-          .filter(line => line.trim() !== '')
-          .map(line => `<li>${line.trim()}</li>`)
-          .join('');
+            .filter(line => line.trim() !== '')
+            .map(line => `<li>${line.trim()}</li>`)
+            .join('');
         formattedText = `<ul>${formattedText}</ul>`;
         break;
     }
@@ -75,4 +82,5 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   }
 });
 
-setInterval(detectPostInput, 1000);
+const linkedInPageObserver = new MutationObserver(detectPostInput);
+linkedInPageObserver.observe(document.body, {childList: true, subtree: true});
