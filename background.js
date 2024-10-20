@@ -7,6 +7,9 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       message: 'Post formatter is available. Click here to open.',
       buttons: [{ title: 'Open Formatter' }]
     });
+  } else if (request.action === 'update-badge') {
+    chrome.action.setBadgeText({ text: request.count.toString() });
+    chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' });
   }
 });
 
