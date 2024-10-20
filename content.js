@@ -1,5 +1,33 @@
-function formatText(action) {
-  const postInput = document.querySelector('.ql-editor');
+let postInput = null;
+
+function detectPostInput() {
+  const newPostInput = document.querySelector('.ql-editor');
+  if (newPostInput && newPostInput !== postInput) {
+    postInput = newPostInput;
+    observePostInput();
+  }
+}
+
+function observePostInput() {
+  if (!postInput) return;
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        const selectedText = window.getSelection().toString();
+        if (selectedText) {
+          formatText('bold', postInput);
+          formatText('italic', postInput);
+          formatText('bullet', postInput);
+        }
+      }
+    });
+  });
+
+  observer.observe(postInput, { childList: true });
+}
+
+function formatText(action, postInput) {
   if (!postInput) return;
 
   const selection = window.getSelection();
@@ -34,5 +62,11 @@ function formatText(action) {
 }
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  formatText(request.action);
+  if (request.action === 'open-post-formatter') {
+    observePostInput();
+  } else {
+    detectPostInput();
+  }
 });
+
+setInterval(detectPostInput, 1000);
