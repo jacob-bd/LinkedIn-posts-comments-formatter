@@ -4,9 +4,6 @@
   "version": "1.0",
   "description": "Format text in LinkedIn posts directly within the post window",
   "permissions": ["activeTab", "notifications", "storage"],
-  "action": {
-    "default_popup": "popup.html"
-  },
   "background": {
     "service_worker": "background.js"
   },
