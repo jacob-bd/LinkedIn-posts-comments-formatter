@@ -1,16 +1,30 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Post Formatter",
-  "version": "1.0",
-  "description": "Format text in LinkedIn posts directly within the post window",
-  "permissions": ["activeTab", "notifications", "storage"],
+  "version": "2.0",
+  "description": "Advanced text formatting for LinkedIn posts with Unicode styling (bold, italic, bullets) and keyboard shortcuts",
+  "permissions": ["storage", "activeTab", "notifications"],
+  "host_permissions": [
+    "https://www.linkedin.com/*"
+  ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/*"],
-      "js": ["content.js"]
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://www.linkedin.com/feed/*",
+        "https://www.linkedin.com/messaging/*",
+        "https://www.linkedin.com/pulse/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
     }
-  ]
+  ],
+  "action": {
+    "default_title": "LinkedIn Post Formatter"
+  }
 }

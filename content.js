@@ -1,5 +1,33 @@
-let postInput = null;
+// LinkedIn Post Formatter - Enhanced Version
+// Tracks editors and manages formatting functionality
 
+// State management using WeakSet for automatic garbage collection
+const state = {
+    editors: new WeakSet(),
+    formattingBars: new WeakMap(),
+    observer: null,
+    urlObserver: null,
+    currentEditor: null
+};
+
+// Unicode character mapping for text formatting
+const unicodeRanges = {
+    bold: {
+        uppercase: 0x1D5D4,  // A-Z: U+1D5D4 to U+1D5ED
+        lowercase: 0x1D5EE,  // a-z: U+1D5EE to U+1D607
+        numbers: 0x1D7EC     // 0-9: U+1D7EC to U+1D7F5
+    },
+    italic: {
+        uppercase: 0x1D608,  // A-Z
+        lowercase: 0x1D622   // a-z
+    },
+    boldItalic: {
+        uppercase: 0x1D63C,  // A-Z
+        lowercase: 0x1D656   // a-z
+    }
+};
+
+// Legacy maps for backwards compatibility and reverse conversion
 const boldMap = {
     'A': '𝐀', 'B': '𝐁', 'C': '𝐂', 'D': '𝐃', 'E': '𝐄', 'F': '𝐅', 'G': '𝐆', 'H': '𝐇', 'I': '𝐈', 'J': '𝐉',
     'K': '𝐊', 'L': '𝐋', 'M': '𝐌', 'N': '𝐍', 'O': '𝐎', 'P': '𝐏', 'Q': '𝐐', 'R': '𝐑', 'S': '𝐒', 'T': '𝐓',
@@ -28,47 +56,225 @@ const boldItalicMap = {
     'u': '𝒖', 'v': '𝒗', 'w': '𝒘', 'x': '𝒙', 'y': '𝒚', 'z': '𝒛'
 };
 
+// Utility: Debounce function to limit execution frequency
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Enhanced Unicode conversion using character code ranges
+function convertToUnicode(text, style) {
+    const range = unicodeRanges[style];
+    if (!range) return text;
+
+    return text.split('').map(char => {
+        const code = char.charCodeAt(0);
+
+        // Uppercase A-Z (65-90)
+        if (code >= 65 && code <= 90 && range.uppercase) {
+            return String.fromCodePoint(code - 65 + range.uppercase);
+        }
+
+        // Lowercase a-z (97-122)
+        if (code >= 97 && code <= 122 && range.lowercase) {
+            return String.fromCodePoint(code - 97 + range.lowercase);
+        }
+
+        // Numbers 0-9 (48-57)
+        if (code >= 48 && code <= 57 && range.numbers) {
+            return String.fromCodePoint(code - 48 + range.numbers);
+        }
+
+        return char; // Keep original if no mapping
+    }).join('');
+}
+
+// Check if text is already formatted
+function isFormatted(text, style) {
+    const map = style === 'bold' ? boldMap :
+                 style === 'italic' ? italicMap : boldItalicMap;
+    return text.split('').some(char => Object.values(map).includes(char));
+}
+
+// Remove Unicode formatting
+function removeFormatting(text, style) {
+    const map = style === 'bold' ? boldMap :
+                 style === 'italic' ? italicMap : boldItalicMap;
+
+    return text.split('').map(char => {
+        const index = Object.values(map).indexOf(char);
+        return index !== -1 ? Object.keys(map)[index] : char;
+    }).join('');
+}
+
+// Remove all Unicode formatting from text using the actual Unicode ranges
+function clearFormatting(text) {
+    if (!text) return '';
+
+    console.log('clearFormatting input:', text);
+
+    // Use Array.from to properly handle Unicode characters (including surrogate pairs)
+    let result = Array.from(text).map(char => {
+        // Use codePointAt to get the actual Unicode code point (handles surrogate pairs)
+        const codePoint = char.codePointAt(0);
+
+        console.log(`Processing char: "${char}" code point: 0x${codePoint.toString(16).toUpperCase()}`);
+
+        // Bold (Sans-serif): U+1D5D4-U+1D607, U+1D7EC-U+1D7F5
+        if (codePoint >= 0x1D5D4 && codePoint <= 0x1D5ED) {
+            // Bold uppercase A-Z
+            const result = String.fromCharCode(65 + (codePoint - 0x1D5D4));
+            console.log(`Bold uppercase detected, converting to: ${result}`);
+            return result;
+        }
+        if (codePoint >= 0x1D5EE && codePoint <= 0x1D607) {
+            // Bold lowercase a-z
+            const result = String.fromCharCode(97 + (codePoint - 0x1D5EE));
+            console.log(`Bold lowercase detected, converting to: ${result}`);
+            return result;
+        }
+        if (codePoint >= 0x1D7EC && codePoint <= 0x1D7F5) {
+            // Bold numbers 0-9
+            const result = String.fromCharCode(48 + (codePoint - 0x1D7EC));
+            console.log(`Bold number detected, converting to: ${result}`);
+            return result;
+        }
+
+        // Italic: U+1D608-U+1D63B
+        if (codePoint >= 0x1D608 && codePoint <= 0x1D621) {
+            // Italic uppercase A-Z
+            const result = String.fromCharCode(65 + (codePoint - 0x1D608));
+            console.log(`Italic uppercase detected, converting to: ${result}`);
+            return result;
+        }
+        if (codePoint >= 0x1D622 && codePoint <= 0x1D63B) {
+            // Italic lowercase a-z
+            const result = String.fromCharCode(97 + (codePoint - 0x1D622));
+            console.log(`Italic lowercase detected, converting to: ${result}`);
+            return result;
+        }
+
+        // Bold Italic: U+1D63C-U+1D66F
+        if (codePoint >= 0x1D63C && codePoint <= 0x1D655) {
+            // Bold Italic uppercase A-Z
+            const result = String.fromCharCode(65 + (codePoint - 0x1D63C));
+            console.log(`Bold italic uppercase detected, converting to: ${result}`);
+            return result;
+        }
+        if (codePoint >= 0x1D656 && codePoint <= 0x1D66F) {
+            // Bold Italic lowercase a-z
+            const result = String.fromCharCode(97 + (codePoint - 0x1D656));
+            console.log(`Bold italic lowercase detected, converting to: ${result}`);
+            return result;
+        }
+
+        // Also check legacy maps for backwards compatibility
+        const allMaps = [boldMap, italicMap, boldItalicMap];
+        for (const map of allMaps) {
+            const values = Object.values(map);
+            const index = values.indexOf(char);
+            if (index !== -1) {
+                console.log(`Found in legacy map, converting from ${char} to ${Object.keys(map)[index]}`);
+                return Object.keys(map)[index];
+            }
+        }
+
+        // Not a formatted character, return as-is
+        console.log(`No formatting detected, keeping as-is: ${char}`);
+        return char;
+    }).join('');
+
+    // Also remove bullet points
+    result = result.replace(/^•\s*/gm, '');
+    result = result.replace(/●\s*/g, '');
+    result = result.replace(/^•/gm, '');
+
+    console.log('clearFormatting output:', result);
+    return result;
+}
+
+// Create formatting toolbar
 function createFormattingBar() {
     console.log('Creating formatting bar');
     const formattingBar = document.createElement('div');
-    formattingBar.id = 'linkedin-formatter-bar';
+    formattingBar.className = 'linkedin-formatter-bar';
     formattingBar.style.cssText = `
         position: absolute;
-        top: -40px;
+        top: -55px;
         left: 0;
         right: 0;
         background-color: #f3f6f8;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        padding: 5px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 8px 10px;
         display: flex;
-        gap: 5px;
-        z-index: 1000;
+        gap: 8px;
+        align-items: center;
+        z-index: 10000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     `;
 
     const buttons = [
-        { text: 'B', action: 'bold', style: 'font-weight: bold;' },
-        { text: 'I', action: 'italic', style: 'font-style: italic;' },
-        { text: 'B/', action: 'boldItalic', style: 'font-weight: bold; font-style: italic;' },
-        { text: '•', action: 'bullet', style: 'font-size: 18px;' }
+        { text: 'B', action: 'bold', style: 'font-weight: bold; font-size: 14px;', title: 'Bold (Ctrl+B)' },
+        { text: 'I', action: 'italic', style: 'font-style: italic; font-size: 14px;', title: 'Italic (Ctrl+I)' },
+        { text: 'B/I', action: 'boldItalic', style: 'font-weight: bold; font-style: italic; font-size: 13px;', title: 'Bold Italic' },
+        { text: '●', action: 'bullet', style: 'font-size: 20px; line-height: 1;', title: 'Bullet Point' },
+        { text: 'Clear', action: 'clear', style: 'font-size: 12px; color: #666;', title: 'Clear Formatting' }
     ];
 
     buttons.forEach(button => {
         const btn = document.createElement('button');
         btn.textContent = button.text;
-        btn.style.cssText = `
+        btn.title = button.title;
+
+        const baseStyle = `
             background-color: #fff;
-            border: 1px solid #0a66c2;
-            color: #0a66c2;
-            padding: 5px 10px;
+            border: 1px solid ${button.action === 'clear' ? '#999' : '#0a66c2'};
+            color: ${button.action === 'clear' ? '#666' : '#0a66c2'};
+            padding: 6px 12px;
             cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            min-width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             ${button.style}
         `;
+        btn.style.cssText = baseStyle;
+
+        // Hover effects
+        btn.onmouseenter = () => {
+            if (button.action === 'clear') {
+                btn.style.backgroundColor = '#666';
+                btn.style.color = '#fff';
+            } else {
+                btn.style.backgroundColor = '#0a66c2';
+                btn.style.color = '#fff';
+            }
+        };
+        btn.onmouseleave = () => {
+            btn.style.cssText = baseStyle;
+        };
+
         btn.onclick = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             console.log(`Button clicked: ${button.action}`);
             formatText(button.action);
+
+            // Track usage
+            trackUsage(button.action);
         };
+
         formattingBar.appendChild(btn);
     });
 
@@ -76,177 +282,336 @@ function createFormattingBar() {
     return formattingBar;
 }
 
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function findPostInput() {
-    const selectors = [
-        '[contenteditable="true"][aria-label*="post"]',  // Main post composer
-        '[contenteditable="true"][aria-label*="share"]', // Share with comment
-        '[contenteditable="true"][role="textbox"]'       // Generic fallback
-    ];
-    
-    return selectors.reduce((found, selector) => {
-        return found || document.querySelector(selector);
-    }, null);
-}
-
-const debouncedDetectPostInput = debounce(detectPostInput, 250);
-
-function detectPostInput() {
-    console.log('Detecting post input');
-    const newPostInput = findPostInput();
-    if (newPostInput && newPostInput !== postInput) {
-        console.log('Post input detected:', newPostInput);
-        postInput = newPostInput;
-        const existingBar = document.getElementById('linkedin-formatter-bar');
-        if (!existingBar) {
-            console.log('Creating formatting bar');
-            const formattingBar = createFormattingBar();
-            postInput.parentNode.style.position = 'relative';
-            postInput.parentNode.insertBefore(formattingBar, postInput);
-            postInput.style.marginTop = '40px';
-        }
-    } else {
-        console.log('No post input detected or input unchanged.');
+// Track usage statistics
+function trackUsage(action) {
+    try {
+        chrome.storage.local.get(['usage'], (result) => {
+            const usage = result.usage || { count: 0, actions: {} };
+            usage.count++;
+            usage.actions[action] = (usage.actions[action] || 0) + 1;
+            usage.lastUsed = Date.now();
+            chrome.storage.local.set({ usage });
+        });
+    } catch (error) {
+        console.log('Usage tracking failed:', error);
     }
 }
 
+// Enhanced text formatting with better LinkedIn compatibility
 function formatText(action) {
-    console.log(`Formatting text: ${action}`);
-    const selection = window.getSelection();
-    const range = selection.getRangeAt(0);
-    let selectedText = range.toString();
+    console.log(`Formatting text: ${action}, selected text length:`, window.getSelection().toString().length);
 
-    if (selectedText.length === 0 && action !== 'bullet') {
-        console.log('No text selected for formatting.');
+    try {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) {
+            console.log('No selection range available');
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        let selectedText = range.toString();
+
+        if (selectedText.length === 0 && action !== 'bullet') {
+            console.log('No text selected for formatting');
+            return;
+        }
+
+        let formattedText = '';
+
+        if (action === 'bold' || action === 'italic' || action === 'boldItalic') {
+            // Check if already formatted
+            if (isFormatted(selectedText, action)) {
+                // Remove formatting
+                formattedText = removeFormatting(selectedText, action);
+                console.log('Removing formatting:', action);
+            } else {
+                // Add formatting using enhanced Unicode conversion
+                formattedText = convertToUnicode(selectedText, action);
+                console.log('Adding formatting:', action);
+            }
+        } else if (action === 'bullet') {
+            // Toggle bullet point
+            if (selectedText.startsWith('• ')) {
+                formattedText = selectedText.slice(2);
+            } else {
+                formattedText = '• ' + selectedText;
+            }
+        } else if (action === 'clear') {
+            // Clear all formatting
+            console.log('Clearing formatting from:', selectedText);
+            formattedText = clearFormatting(selectedText);
+            console.log('Cleared result:', formattedText);
+        }
+
+        if (!formattedText && formattedText !== '') {
+            console.error('No formatted text generated');
+            return;
+        }
+
+        // Save the start container and offset before deleting
+        const startContainer = range.startContainer;
+        const startOffset = range.startOffset;
+
+        // Delete the selected content
+        range.deleteContents();
+
+        // Create text node with formatted text
+        const textNode = document.createTextNode(formattedText);
+
+        // Insert the node
+        range.insertNode(textNode);
+
+        // Create new range and collapse it after the inserted text
+        const newRange = document.createRange();
+        newRange.setStart(textNode, formattedText.length);
+        newRange.collapse(true);
+
+        // Clear selection and add new range
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+
+        // Trigger multiple events for better LinkedIn compatibility
+        const editor = state.currentEditor || document.activeElement;
+        if (editor && editor.isContentEditable) {
+            // Use setTimeout to ensure DOM has updated
+            setTimeout(() => {
+                const events = [
+                    new InputEvent('input', {
+                        bubbles: true,
+                        cancelable: false,
+                        inputType: 'insertText',
+                        data: formattedText
+                    }),
+                    new Event('change', { bubbles: true })
+                ];
+
+                events.forEach(event => {
+                    try {
+                        editor.dispatchEvent(event);
+                    } catch (e) {
+                        console.log('Event dispatch error:', e);
+                    }
+                });
+            }, 0);
+        }
+
+        console.log('Formatting applied successfully:', formattedText.substring(0, 50));
+    } catch (error) {
+        console.error('Error applying formatting:', error);
+    }
+}
+
+// Find post editor with multiple strategies
+function findPostEditor() {
+    const selectors = [
+        '[contenteditable="true"][role="textbox"]',
+        '.ql-editor[contenteditable="true"]',
+        '[contenteditable="true"]'
+    ];
+
+    for (const selector of selectors) {
+        const elements = document.querySelectorAll(selector);
+        for (const element of elements) {
+            // Check if element is visible
+            if (element.offsetParent !== null && element.isContentEditable) {
+                // Skip if already has a formatter attached
+                if (state.editors.has(element)) {
+                    continue;
+                }
+                return element;
+            }
+        }
+    }
+    return null;
+}
+
+// Check if element is in a post creation context (more lenient)
+function isPostContext(element) {
+    if (!element.isContentEditable) return false;
+
+    // Just check if it's visible and editable - be more lenient
+    return element.offsetParent !== null;
+}
+
+// Attach formatter to an editor
+function attachFormatter(editor) {
+    if (state.editors.has(editor)) {
+        console.log('Formatter already attached to this editor');
         return;
     }
 
-    let formattedText;
-    if (action === 'bold' || action === 'italic' || action === 'boldItalic') {
-        const map = action === 'bold' ? boldMap : (action === 'italic' ? italicMap : boldItalicMap);
-        
-        // Check if the text is already formatted
-        const isFormatted = selectedText.split('').some(char => Object.values(map).includes(char));
-        
-        if (isFormatted) {
-            // Remove formatting
-            formattedText = selectedText.split('').map(char => {
-                const index = Object.values(map).indexOf(char);
-                return index !== -1 ? Object.keys(map)[index] : char;
-            }).join('');
-        } else {
-            // Add formatting
-            formattedText = selectedText.split('').map(char => map[char] || char).join('');
-        }
-    } else if (action === 'bullet') {
-        // Add or remove bullet point
-        if (selectedText.startsWith('• ')) {
-            formattedText = selectedText.slice(2);
-        } else {
-            formattedText = '• ' + selectedText;
-        }
+    console.log('Attaching formatter to editor:', editor);
+    state.editors.add(editor);
+    state.currentEditor = editor;
+
+    // Check if a bar already exists for this editor's parent
+    const parent = editor.parentNode;
+    if (!parent) {
+        console.log('Editor has no parent, cannot attach formatter');
+        return;
     }
 
-    range.deleteContents();
-    range.insertNode(document.createTextNode(formattedText));
+    // Remove any existing bars in the parent to prevent duplicates
+    const existingBars = parent.querySelectorAll('.linkedin-formatter-bar');
+    existingBars.forEach(bar => bar.remove());
 
-    // Adjust the selection to include the formatted text
-    const newRange = document.createRange();
-    newRange.setStartBefore(range.startContainer);
-    newRange.setEndAfter(range.endContainer);
-    selection.removeAllRanges();
-    selection.addRange(newRange);
+    // Create formatting bar
+    const formattingBar = createFormattingBar();
+    state.formattingBars.set(editor, formattingBar);
 
-    // Trigger input event to ensure LinkedIn recognizes the change
-    const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-    postInput.dispatchEvent(inputEvent);
+    // Only set position relative if not already set
+    const parentStyle = window.getComputedStyle(parent);
+    if (parentStyle.position === 'static') {
+        parent.style.position = 'relative';
+    }
 
-    console.log('Formatting applied:', formattedText);
-}
+    // Insert bar before editor
+    parent.insertBefore(formattingBar, editor);
 
-function observePageChanges() {
-    let observer = null;
-    
-    function startObserving(target) {
-        if (!target) return;
-        
-        // Stop any existing observation
-        if (observer) {
-            observer.disconnect();
-        }
-        
-        observer = new MutationObserver((mutations) => {
-            // Filter mutations to reduce unnecessary processing
-            const shouldCheck = mutations.some(mutation => {
-                // Check if the mutation is relevant to our needs
-                if (mutation.type !== 'childList') return false;
-                
-                // Check if added nodes contain potential post inputs
-                const hasNewInput = Array.from(mutation.addedNodes).some(node => {
-                    if (node.nodeType !== Node.ELEMENT_NODE) return false;
-                    return node.querySelector('[contenteditable="true"]') !== null;
-                });
-                
-                return hasNewInput;
-            });
-            
-            if (shouldCheck) {
-                debouncedDetectPostInput();
+    // Only add margin if not already set
+    const currentMargin = window.getComputedStyle(editor).marginTop;
+    if (currentMargin === '0px' || currentMargin === '') {
+        editor.style.marginTop = '60px';
+    }
+
+    // Set up removal observer
+    const removalObserver = new MutationObserver(() => {
+        if (!document.contains(editor)) {
+            formattingBar.remove();
+            state.editors.delete(editor);
+            state.formattingBars.delete(editor);
+            if (state.currentEditor === editor) {
+                state.currentEditor = null;
             }
-        });
-
-        // More specific observation configuration
-        observer.observe(target, {
-            childList: true,
-            subtree: true,
-            attributes: false,
-            characterData: false
-        });
-        
-        // Initial check
-        detectPostInput();
-    }
-    
-    // Find the main feed or post composer container
-    const feedContainer = document.querySelector('.feed-shared-update-v2, .share-box-feed-entry');
-    if (feedContainer) {
-        startObserving(feedContainer);
-    } else {
-        // If we can't find the specific container, fall back to a broader but still limited scope
-        const mainContent = document.querySelector('main') || document.body;
-        startObserving(mainContent);
-    }
-    
-    // Cleanup function
-    return function cleanup() {
-        if (observer) {
-            observer.disconnect();
-            observer = null;
+            removalObserver.disconnect();
+            console.log('Editor removed, cleaned up formatter');
         }
-    };
+    });
+
+    removalObserver.observe(parent, { childList: true });
+
+    // Track focus
+    editor.addEventListener('focus', () => {
+        state.currentEditor = editor;
+    });
 }
 
-// Start observing page changes with cleanup handling
-const cleanup = observePageChanges();
+// Scan for editors and attach formatters
+function scanForEditors() {
+    console.log('Scanning for post editors...');
+    const editor = findPostEditor();
 
-// Cleanup when extension is disabled or page is unloaded
-window.addEventListener('unload', cleanup);
-chrome.runtime.onDisconnect.addListener(cleanup);
+    if (editor && !state.editors.has(editor)) {
+        attachFormatter(editor);
+    }
+}
 
+// Handle DOM mutations
+function handleMutations(mutations) {
+    // Just trigger a scan instead of processing each mutation
+    scanForEditors();
+}
+
+const debouncedHandleMutations = debounce(handleMutations, 500);
+
+// Set up observers
+function setupObservers() {
+    // DOM mutation observer - less aggressive
+    state.observer = new MutationObserver(debouncedHandleMutations);
+    state.observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // URL change observer for SPA navigation
+    let lastUrl = location.href;
+    const urlCheckInterval = setInterval(() => {
+        const currentUrl = location.href;
+        if (currentUrl !== lastUrl) {
+            console.log('URL changed from', lastUrl, 'to', currentUrl);
+            lastUrl = currentUrl;
+            // Clear existing editors tracking
+            state.editors = new WeakSet();
+            // Re-scan after navigation
+            setTimeout(scanForEditors, 1000);
+        }
+    }, 1000);
+
+    console.log('Observers set up successfully');
+}
+
+// Keyboard shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Check if we're in an editor
+        if (!state.currentEditor || !state.currentEditor.isContentEditable) {
+            return;
+        }
+
+        // Ctrl/Cmd + B for bold
+        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+            e.preventDefault();
+            formatText('bold');
+        }
+
+        // Ctrl/Cmd + I for italic
+        if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+            e.preventDefault();
+            formatText('italic');
+        }
+    });
+
+    console.log('Keyboard shortcuts set up');
+}
+
+// Message listener for extension communication
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     console.log('Message received:', request);
-    formatText(request.action);
+    if (request.action) {
+        formatText(request.action);
+        sendResponse({ success: true });
+    }
+    return true;
+});
+
+// Initialize the extension
+function init() {
+    console.log('LinkedIn Formatter - Enhanced Version initializing...');
+
+    try {
+        setupObservers();
+        setupKeyboardShortcuts();
+
+        // Initial scan after a delay to let LinkedIn load
+        setTimeout(scanForEditors, 2000);
+
+        // Periodic scan every 5 seconds for robustness
+        setInterval(() => {
+            const editor = findPostEditor();
+            if (editor && !state.editors.has(editor)) {
+                console.log('Periodic scan found new editor');
+                scanForEditors();
+            }
+        }, 5000);
+
+        console.log('LinkedIn Formatter initialized successfully');
+    } catch (error) {
+        console.error('Error initializing LinkedIn Formatter:', error);
+        // Retry initialization after delay
+        setTimeout(init, 2000);
+    }
+}
+
+// Start when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+// Error recovery
+window.addEventListener('error', (e) => {
+    console.error('Extension error:', e);
 });
 
 console.log('LinkedIn Formatter script loaded');
