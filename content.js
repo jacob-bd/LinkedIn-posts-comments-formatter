@@ -23,7 +23,8 @@ const state = {
     formattingBars: new WeakMap(),
     observer: null,
     urlObserver: null,
-    currentEditor: null
+    currentEditor: null,
+    savedSelection: null  // Store selection when opening dropdown
 };
 
 // Unicode character mapping for text formatting
@@ -45,6 +46,15 @@ const unicodeRanges = {
         uppercase: 0x1D670,  // A-Z: U+1D670 to U+1D689
         lowercase: 0x1D68A,  // a-z: U+1D68A to U+1D6A3
         numbers: 0x1D7F6     // 0-9: U+1D7F6 to U+1D7FF
+    },
+    sansSerif: {
+        uppercase: 0x1D5A0,  // A-Z
+        lowercase: 0x1D5BA,  // a-z
+        numbers: 0x1D7E2     // 0-9
+    },
+    script: {
+        uppercase: 0x1D49C,  // A-Z (with some exceptions)
+        lowercase: 0x1D4B6   // a-z
     },
     // Strikethrough and underline use combining characters
     strikethrough: {
@@ -99,6 +109,98 @@ function debounce(func, wait) {
 
 // Enhanced Unicode conversion using character code ranges
 function convertToUnicode(text, style) {
+    // Special case for circled text
+    if (style === 'circled') {
+        return text.split('').map(char => {
+            const code = char.charCodeAt(0);
+            // Uppercase A-Z → Ⓐ-Ⓩ (U+24B6 to U+24CF)
+            if (code >= 65 && code <= 90) {
+                return String.fromCodePoint(0x24B6 + (code - 65));
+            }
+            // Lowercase a-z → ⓐ-ⓩ (U+24D0 to U+24E9)
+            if (code >= 97 && code <= 122) {
+                return String.fromCodePoint(0x24D0 + (code - 97));
+            }
+            // Numbers 0-9 → ⓪-⑨ (U+24EA, U+2460-2468)
+            if (code >= 48 && code <= 57) {
+                if (char === '0') return '⓪';
+                return String.fromCodePoint(0x245F + (code - 48));
+            }
+            return char;
+        }).join('');
+    }
+
+    // Special case for negative circled text
+    if (style === 'negativeCircled') {
+        return text.split('').map(char => {
+            const code = char.charCodeAt(0);
+            // Uppercase A-Z → 🅐-🅩 (U+1F150 to U+1F169)
+            if (code >= 65 && code <= 90) {
+                return String.fromCodePoint(0x1F150 + (code - 65));
+            }
+            // Lowercase - use uppercase negative circled
+            if (code >= 97 && code <= 122) {
+                return String.fromCodePoint(0x1F150 + (code - 97));
+            }
+            return char;
+        }).join('');
+    }
+
+    // Special case for squared text
+    if (style === 'squared') {
+        return text.split('').map(char => {
+            const code = char.charCodeAt(0);
+            // Uppercase A-Z → 🄰-🅉 (U+1F130 to U+1F149)
+            if (code >= 65 && code <= 90) {
+                return String.fromCodePoint(0x1F130 + (code - 65));
+            }
+            // Lowercase - use uppercase squared
+            if (code >= 97 && code <= 122) {
+                return String.fromCodePoint(0x1F130 + (code - 97));
+            }
+            return char;
+        }).join('');
+    }
+
+    // Special case for fullwidth text
+    if (style === 'fullwidth') {
+        return text.split('').map(char => {
+            const code = char.charCodeAt(0);
+            // Uppercase A-Z → Ａ-Ｚ (U+FF21 to U+FF3A)
+            if (code >= 65 && code <= 90) {
+                return String.fromCodePoint(0xFF21 + (code - 65));
+            }
+            // Lowercase a-z → ａ-ｚ (U+FF41 to U+FF5A)
+            if (code >= 97 && code <= 122) {
+                return String.fromCodePoint(0xFF41 + (code - 97));
+            }
+            // Numbers 0-9 → ０-９ (U+FF10 to U+FF19)
+            if (code >= 48 && code <= 57) {
+                return String.fromCodePoint(0xFF10 + (code - 48));
+            }
+            // Space → fullwidth space
+            if (code === 32) {
+                return String.fromCodePoint(0x3000);
+            }
+            return char;
+        }).join('');
+    }
+
+    // Special case for script text (has some exceptions)
+    if (style === 'script') {
+        const scriptMap = {
+            'A': '𝒜', 'B': '𝐵', 'C': '𝒞', 'D': '𝒟', 'E': '𝐸', 'F': '𝐹', 'G': '𝒢',
+            'H': '𝐻', 'I': '𝐼', 'J': '𝒥', 'K': '𝒦', 'L': '𝐿', 'M': '𝑀', 'N': '𝒩',
+            'O': '𝒪', 'P': '𝒫', 'Q': '𝒬', 'R': '𝑅', 'S': '𝒮', 'T': '𝒯', 'U': '𝒰',
+            'V': '𝒱', 'W': '𝒲', 'X': '𝒳', 'Y': '𝒴', 'Z': '𝒵',
+            'a': '𝒶', 'b': '𝒷', 'c': '𝒸', 'd': '𝒹', 'e': '𝑒', 'f': '𝒻', 'g': '𝑔',
+            'h': '𝒽', 'i': '𝒾', 'j': '𝒿', 'k': '𝓀', 'l': '𝓁', 'm': '𝓂', 'n': '𝓃',
+            'o': '𝑜', 'p': '𝓅', 'q': '𝓆', 'r': '𝓇', 's': '𝓈', 't': '𝓉', 'u': '𝓊',
+            'v': '𝓋', 'w': '𝓌', 'x': '𝓍', 'y': '𝓎', 'z': '𝓏'
+        };
+        return text.split('').map(char => scriptMap[char] || char).join('');
+    }
+
     const range = unicodeRanges[style];
     if (!range) return text;
 
@@ -262,8 +364,105 @@ function clearFormatting(text) {
     result = result.replace(/^•\s*/gm, '');
     result = result.replace(/●\s*/g, '');
 
+    // Remove numbered lists (e.g., "1. ", "2) ", etc.)
+    result = result.replace(/^\d+[\.\)]\s+/gm, '');
+
     console.log('clearFormatting output:', result);
     return result;
+}
+
+// Save current selection
+function saveSelection() {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        state.savedSelection = selection.getRangeAt(0).cloneRange();
+        console.log('Selection saved:', state.savedSelection.toString());
+    }
+}
+
+// Restore saved selection
+function restoreSelection() {
+    if (state.savedSelection) {
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(state.savedSelection);
+        console.log('Selection restored:', state.savedSelection.toString());
+    }
+}
+
+// Create font dropdown menu
+function createFontDropdown() {
+    const dropdown = document.createElement('div');
+    dropdown.className = 'linkedin-formatter-font-dropdown';
+    dropdown.style.cssText = `
+        display: none;
+        position: absolute;
+        bottom: 45px;
+        left: 0;
+        background: white;
+        border: 1px solid rgba(0,0,0,0.15);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 8px 0;
+        z-index: 1000;
+        min-width: 200px;
+        max-height: 300px;
+        overflow-y: auto;
+    `;
+
+    const fontOptions = [
+        { text: '𝗦𝗮𝗻𝘀-𝘀𝗲𝗿𝗶𝗳', action: 'sansSerif', label: 'Sans-serif' },
+        { text: '𝓢𝓬𝓻𝓲𝓹𝓽', action: 'script', label: 'Script' },
+        { text: 'Ⓒⓘⓡⓒⓛⓔⓓ', action: 'circled', label: 'Circled' },
+        { text: '🅝🅔🅖🅐🅣🅘🅥🅔', action: 'negativeCircled', label: 'Negative Circled' },
+        { text: '🅂🅀🅄🄰🅁🄴🄳', action: 'squared', label: 'Squared' },
+        { text: 'Ｆｕｌｌｗｉｄｔｈ', action: 'fullwidth', label: 'Fullwidth' },
+        { text: '𝙼𝚘𝚗𝚘𝚜𝚙𝚊𝚌𝚎', action: 'monospace', label: 'Monospace' }
+    ];
+
+    fontOptions.forEach(option => {
+        const item = document.createElement('div');
+        item.className = 'font-option';
+        item.textContent = `${option.text}`;
+        item.title = option.label;
+        item.style.cssText = `
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        `;
+
+        item.onmouseenter = () => {
+            item.style.backgroundColor = 'rgba(0,0,0,0.08)';
+        };
+        item.onmouseleave = () => {
+            item.style.backgroundColor = 'transparent';
+        };
+
+        item.onmousedown = (e) => {
+            // Prevent default to avoid losing selection
+            e.preventDefault();
+        };
+
+        item.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Restore the saved selection before formatting
+            restoreSelection();
+
+            // Apply the formatting
+            formatText(option.action);
+            trackUsage(option.action);
+
+            // Close the dropdown
+            dropdown.style.display = 'none';
+        };
+
+        dropdown.appendChild(item);
+    });
+
+    return dropdown;
 }
 
 // Create formatting buttons container
@@ -279,6 +478,7 @@ function createFormattingButtons() {
         align-items: center;
         flex-shrink: 0;
         white-space: nowrap;
+        position: relative;
     `;
 
     const buttons = [
@@ -287,21 +487,61 @@ function createFormattingButtons() {
         { text: 'B/I', action: 'boldItalic', title: 'Bold Italic' },
         { text: 'S̶', action: 'strikethrough', title: 'Strikethrough' },
         { text: 'U̲', action: 'underline', title: 'Underline' },
-        { text: '𝙼', action: 'monospace', title: 'Monospace' },
-        { text: '●', action: 'bullet', title: 'Bullet Point' },
+        { text: 'Aa', action: 'font-dropdown', title: 'Font Style', isDropdown: true },
+        { text: '•', action: 'bullet', title: 'Bullet List' },
+        { text: '1.', action: 'numbered', title: 'Numbered List' },
         { text: '✕', action: 'clear', title: 'Clear Formatting' }
     ];
 
     buttons.forEach(button => {
         const btn = document.createElement('button');
-        btn.textContent = button.text;
         btn.title = button.title;
         btn.className = 'linkedin-formatter-btn';
+
+        // Create custom SVG icons for special buttons
+        if (button.action === 'bullet') {
+            btn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="3" cy="4" r="1.5" fill="currentColor"/>
+                    <line x1="6" y1="4" x2="16" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="3" cy="9" r="1.5" fill="currentColor"/>
+                    <line x1="6" y1="9" x2="16" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="3" cy="14" r="1.5" fill="currentColor"/>
+                    <line x1="6" y1="14" x2="16" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            `;
+        } else if (button.action === 'numbered') {
+            btn.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <text x="1" y="6" font-size="6" fill="currentColor" font-family="Arial">1</text>
+                    <line x1="6" y1="4" x2="16" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <text x="1" y="11" font-size="6" fill="currentColor" font-family="Arial">2</text>
+                    <line x1="6" y1="9" x2="16" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <text x="1" y="16" font-size="6" fill="currentColor" font-family="Arial">3</text>
+                    <line x1="6" y1="14" x2="16" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            `;
+        } else if (button.action === 'font-dropdown') {
+            // Font style selector - Text Aa
+            btn.textContent = 'Aa';
+        } else if (button.action === 'clear') {
+            // Clear formatting - T with diagonal slash
+            btn.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <!-- T letter -->
+                    <path d="M 6 6 L 14 6 M 10 6 L 10 16" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Diagonal slash -->
+                    <line x1="4" y1="17" x2="16" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            `;
+        } else {
+            btn.textContent = button.text;
+        }
 
         // Style to match LinkedIn's buttons
         btn.style.cssText = `
             background-color: transparent;
-            border: none;
+            border: ${button.action === 'font-dropdown' ? '1px solid rgba(0,0,0,0.2)' : 'none'};
             color: rgba(0,0,0,0.6);
             padding: 8px;
             cursor: pointer;
@@ -325,13 +565,42 @@ function createFormattingButtons() {
             btn.style.backgroundColor = 'transparent';
         };
 
-        btn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log(`Button clicked: ${button.action}`);
-            formatText(button.action);
-            trackUsage(button.action);
-        };
+        // Handle dropdown button specially
+        if (button.isDropdown) {
+            const dropdown = createFontDropdown();
+            container.appendChild(dropdown);
+
+            btn.onmousedown = (e) => {
+                // Save selection before button click causes it to be lost
+                e.preventDefault();
+                saveSelection();
+            };
+
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Font dropdown button clicked');
+
+                // Toggle dropdown visibility
+                const isVisible = dropdown.style.display === 'block';
+                dropdown.style.display = isVisible ? 'none' : 'block';
+            };
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        } else {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log(`Button clicked: ${button.action}`);
+                formatText(button.action);
+                trackUsage(button.action);
+            };
+        }
 
         container.appendChild(btn);
     });
@@ -377,7 +646,9 @@ function formatText(action) {
         let formattedText = '';
 
         if (action === 'bold' || action === 'italic' || action === 'boldItalic' ||
-            action === 'monospace' || action === 'strikethrough' || action === 'underline') {
+            action === 'monospace' || action === 'strikethrough' || action === 'underline' ||
+            action === 'sansSerif' || action === 'script' || action === 'circled' ||
+            action === 'negativeCircled' || action === 'squared' || action === 'fullwidth') {
             // Check if already formatted
             if (isFormatted(selectedText, action)) {
                 // Remove formatting
@@ -389,11 +660,121 @@ function formatText(action) {
                 console.log('Adding formatting:', action);
             }
         } else if (action === 'bullet') {
-            // Toggle bullet point
-            if (selectedText.startsWith('• ')) {
-                formattedText = selectedText.slice(2);
+            // For bullet points, we need to handle the DOM structure directly
+            // LinkedIn uses contenteditable with div/br elements, not \n characters
+
+            // Get all text nodes and block elements in the selection
+            const container = range.commonAncestorContainer;
+            const editor = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+
+            // Find all block-level elements (divs, paragraphs) within the selection
+            let blocks = [];
+
+            if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+                // Single line selection - just add bullet to this line
+                const text = selectedText.trim();
+                if (text.startsWith('• ')) {
+                    formattedText = text.slice(2);
+                } else if (text.startsWith('•')) {
+                    formattedText = text.slice(1).trim();
+                } else {
+                    formattedText = '• ' + text;
+                }
             } else {
-                formattedText = '• ' + selectedText;
+                // Multi-line selection - split by actual line breaks
+                // In contenteditable, check for <br> or new block elements
+                const tempDiv = document.createElement('div');
+                const clonedContents = range.cloneContents();
+                tempDiv.appendChild(clonedContents);
+
+                // Get text with preserved line breaks
+                const htmlContent = tempDiv.innerHTML;
+                // Replace <br>, </div>, </p> with newlines
+                const textWithBreaks = htmlContent
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<\/div>/gi, '\n')
+                    .replace(/<\/p>/gi, '\n')
+                    .replace(/<[^>]+>/g, '') // Remove other HTML tags
+                    .trim();
+
+                const lines = textWithBreaks.split('\n').filter(line => line.trim());
+
+                if (lines.length === 0) {
+                    formattedText = '• ' + selectedText;
+                } else {
+                    const allHaveBullets = lines.every(line => line.trim().startsWith('•'));
+
+                    if (allHaveBullets) {
+                        // Remove bullets
+                        formattedText = lines.map(line => {
+                            const trimmed = line.trim();
+                            if (trimmed.startsWith('• ')) return trimmed.slice(2);
+                            if (trimmed.startsWith('•')) return trimmed.slice(1).trim();
+                            return trimmed;
+                        }).join('\n');
+                    } else {
+                        // Add bullets
+                        formattedText = lines.map(line => {
+                            const trimmed = line.trim();
+                            if (!trimmed) return '';
+                            if (trimmed.startsWith('•')) return trimmed;
+                            return '• ' + trimmed;
+                        }).join('\n');
+                    }
+                }
+            }
+        } else if (action === 'numbered') {
+            // For numbered lists, handle DOM structure like bullets
+            const container = range.commonAncestorContainer;
+            const editor = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+
+            if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+                // Single line selection
+                const text = selectedText.trim();
+                // Check if it starts with a number pattern like "1. " or "1) "
+                if (/^\d+[\.\)]\s/.test(text)) {
+                    // Remove numbering
+                    formattedText = text.replace(/^\d+[\.\)]\s+/, '');
+                } else {
+                    formattedText = '1. ' + text;
+                }
+            } else {
+                // Multi-line selection
+                const tempDiv = document.createElement('div');
+                const clonedContents = range.cloneContents();
+                tempDiv.appendChild(clonedContents);
+
+                const htmlContent = tempDiv.innerHTML;
+                const textWithBreaks = htmlContent
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<\/div>/gi, '\n')
+                    .replace(/<\/p>/gi, '\n')
+                    .replace(/<[^>]+>/g, '')
+                    .trim();
+
+                const lines = textWithBreaks.split('\n').filter(line => line.trim());
+
+                if (lines.length === 0) {
+                    formattedText = '1. ' + selectedText;
+                } else {
+                    const allHaveNumbers = lines.every(line => /^\d+[\.\)]\s/.test(line.trim()));
+
+                    if (allHaveNumbers) {
+                        // Remove numbering
+                        formattedText = lines.map(line => {
+                            return line.trim().replace(/^\d+[\.\)]\s+/, '');
+                        }).join('\n');
+                    } else {
+                        // Add numbering
+                        formattedText = lines.map((line, index) => {
+                            const trimmed = line.trim();
+                            if (!trimmed) return '';
+                            // Don't re-number if already numbered
+                            if (/^\d+[\.\)]\s/.test(trimmed)) return trimmed;
+                            return `${index + 1}. ${trimmed}`;
+                        }).join('\n');
+                    }
+                }
             }
         } else if (action === 'clear') {
             // Clear all formatting
