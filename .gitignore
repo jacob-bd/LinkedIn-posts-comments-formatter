@@ -1,1 +1,20 @@
 .aider*
+
+# Session and context files - DO NOT COMMIT
+.session-*
+*DO-NOT-COMMIT*
+*.session
+*.context
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
