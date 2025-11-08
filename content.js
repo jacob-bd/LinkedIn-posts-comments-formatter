@@ -46,6 +46,7 @@ const state = {
     formattingBars: new WeakMap(),
     observer: null,
     urlObserver: null,
+    urlCheckInterval: null,  // Store interval ID for cleanup
     currentEditor: null,
     savedSelection: null  // Store selection when opening dropdown
 };
@@ -117,16 +118,17 @@ const boldItalicMap = {
     'u': '𝒖', 'v': '𝒗', 'w': '𝒘', 'x': '𝒙', 'y': '𝒚', 'z': '𝒛'
 };
 
-// Utility: Debounce function to limit execution frequency
+// Reverse lookup maps for O(1) performance instead of O(n) indexOf
+const reverseBoldMap = Object.fromEntries(Object.entries(boldMap).map(([k, v]) => [v, k]));
+const reverseItalicMap = Object.fromEntries(Object.entries(italicMap).map(([k, v]) => [v, k]));
+const reverseBoldItalicMap = Object.fromEntries(Object.entries(boldItalicMap).map(([k, v]) => [v, k]));
+
+// Utility: Debounce function to limit execution frequency (optimized)
 function debounce(func, wait) {
     let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func.apply(this, args);
-        };
+    return function(...args) {
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(() => func.apply(this, args), wait);
     };
 }
 
@@ -293,16 +295,13 @@ function removeFormatting(text, style) {
         return text.split(range.combiningChar).join('');
     }
 
-    // Use legacy maps for backward compatibility
-    const map = style === 'bold' ? boldMap :
-                 style === 'italic' ? italicMap :
-                 style === 'boldItalic' ? boldItalicMap : null;
+    // Use reverse lookup maps for O(1) performance instead of O(n) indexOf
+    const reverseMap = style === 'bold' ? reverseBoldMap :
+                       style === 'italic' ? reverseItalicMap :
+                       style === 'boldItalic' ? reverseBoldItalicMap : null;
 
-    if (map) {
-        return text.split('').map(char => {
-            const index = Object.values(map).indexOf(char);
-            return index !== -1 ? Object.keys(map)[index] : char;
-        }).join('');
+    if (reverseMap) {
+        return text.split('').map(char => reverseMap[char] || char).join('');
     }
 
     return text;
@@ -369,13 +368,11 @@ function clearFormatting(text) {
             return String.fromCharCode(48 + (codePoint - 0x1D7F6)); // Monospace numbers 0-9
         }
 
-        // Also check legacy maps for backwards compatibility
-        const allMaps = [boldMap, italicMap, boldItalicMap];
-        for (const map of allMaps) {
-            const values = Object.values(map);
-            const index = values.indexOf(char);
-            if (index !== -1) {
-                return Object.keys(map)[index];
+        // Also check reverse legacy maps for backwards compatibility (O(1) lookup)
+        const reverseMaps = [reverseBoldMap, reverseItalicMap, reverseBoldItalicMap];
+        for (const reverseMap of reverseMaps) {
+            if (reverseMap[char]) {
+                return reverseMap[char];
             }
         }
 
@@ -1101,14 +1098,10 @@ function attachFormatter(editor) {
         }
 
         if (postButton && footerContainer && footerContainer !== document.body) {
-            // Ensure footer container uses flexbox with space-between
+            // Ensure footer container uses flexbox with space-between (CSS class handles styling)
             footerContainer.classList.add('linkedin-formatter-footer-container');
-            footerContainer.style.display = 'flex';
-            footerContainer.style.justifyContent = 'space-between';
-            footerContainer.style.alignItems = 'center';
-            footerContainer.style.width = '100%';
 
-            // Check if we've already created sections
+            // Check if we've already created sections (cache query results)
             let leftSection = footerContainer.querySelector('.linkedin-formatter-left-section');
             let rightSection = footerContainer.querySelector('.linkedin-formatter-right-section');
 
@@ -1117,15 +1110,12 @@ function attachFormatter(editor) {
                 // Create left section for formatting buttons and existing toolbar items
                 leftSection = document.createElement('div');
                 leftSection.className = 'linkedin-formatter-left-section';
-                leftSection.style.display = 'flex';
-                leftSection.style.alignItems = 'center';
-                leftSection.style.flex = '1';
+                // CSS class handles all styling, no inline styles needed
 
                 // Create right section for Post button
                 rightSection = document.createElement('div');
                 rightSection.className = 'linkedin-formatter-right-section';
-                rightSection.style.display = 'flex';
-                rightSection.style.alignItems = 'center';
+                // CSS class handles all styling, no inline styles needed
 
                 // Collect all direct children of footerContainer to reorganize
                 const footerChildren = Array.from(footerContainer.children);
@@ -1151,11 +1141,8 @@ function attachFormatter(editor) {
                 // Add sections to footer
                 footerContainer.appendChild(leftSection);
                 footerContainer.appendChild(rightSection);
-            } else {
-                // Sections already exist, ensure they're still properly styled
-                leftSection = footerContainer.querySelector('.linkedin-formatter-left-section');
-                rightSection = footerContainer.querySelector('.linkedin-formatter-right-section');
             }
+            // Reuse cached leftSection and rightSection variables (no need to re-query)
 
             // Insert formatting buttons into the toolbar (which should be in leftSection)
             // The toolbar reference is still valid
@@ -1171,10 +1158,7 @@ function attachFormatter(editor) {
             }
             log('✅ Formatting buttons inserted in left section, aligned with Post button');
         } else {
-            // Fallback: ensure toolbar uses flex and insert at beginning
-            toolbar.style.display = 'flex';
-            toolbar.style.justifyContent = 'flex-start';
-            toolbar.style.alignItems = 'center';
+            // Fallback: insert at beginning (toolbar should already have flex styling from LinkedIn)
             toolbar.insertBefore(formattingButtons, toolbar.firstChild);
             log('✅ Formatting buttons inserted (fallback - Post button not found)');
         }
@@ -1245,7 +1229,7 @@ function setupObservers() {
 
     // URL change observer for SPA navigation
     let lastUrl = location.href;
-    const urlCheckInterval = setInterval(() => {
+    state.urlCheckInterval = setInterval(() => {
         const currentUrl = location.href;
         if (currentUrl !== lastUrl) {
             log('URL changed from', lastUrl, 'to', currentUrl);
@@ -1256,6 +1240,14 @@ function setupObservers() {
             setTimeout(scanForEditors, 1000);
         }
     }, 1000);
+
+    // Cleanup interval on page unload
+    window.addEventListener('beforeunload', () => {
+        if (state.urlCheckInterval) {
+            clearInterval(state.urlCheckInterval);
+            state.urlCheckInterval = null;
+        }
+    });
 
     log('Observers set up successfully');
 }
