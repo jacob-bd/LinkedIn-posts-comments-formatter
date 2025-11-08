@@ -24,6 +24,18 @@ const unicodeRanges = {
     boldItalic: {
         uppercase: 0x1D63C,  // A-Z
         lowercase: 0x1D656   // a-z
+    },
+    monospace: {
+        uppercase: 0x1D670,  // A-Z: U+1D670 to U+1D689
+        lowercase: 0x1D68A,  // a-z: U+1D68A to U+1D6A3
+        numbers: 0x1D7F6     // 0-9: U+1D7F6 to U+1D7FF
+    },
+    // Strikethrough and underline use combining characters
+    strikethrough: {
+        combiningChar: '\u0336'  // Combining long stroke overlay
+    },
+    underline: {
+        combiningChar: '\u0332'  // Combining low line
     }
 };
 
@@ -74,6 +86,18 @@ function convertToUnicode(text, style) {
     const range = unicodeRanges[style];
     if (!range) return text;
 
+    // Handle combining characters (strikethrough, underline)
+    if (range.combiningChar) {
+        return text.split('').map(char => {
+            // Don't add combining char to spaces or special chars
+            if (char === ' ' || char === '\n' || char === '\r') {
+                return char;
+            }
+            return char + range.combiningChar;
+        }).join('');
+    }
+
+    // Handle regular Unicode ranges (bold, italic, monospace, etc.)
     return text.split('').map(char => {
         const code = char.charCodeAt(0);
 
@@ -98,20 +122,49 @@ function convertToUnicode(text, style) {
 
 // Check if text is already formatted
 function isFormatted(text, style) {
+    const range = unicodeRanges[style];
+    if (!range) return false;
+
+    // Check for combining characters
+    if (range.combiningChar) {
+        return text.includes(range.combiningChar);
+    }
+
+    // Check legacy maps for backward compatibility
     const map = style === 'bold' ? boldMap :
-                 style === 'italic' ? italicMap : boldItalicMap;
-    return text.split('').some(char => Object.values(map).includes(char));
+                 style === 'italic' ? italicMap :
+                 style === 'boldItalic' ? boldItalicMap : null;
+
+    if (map) {
+        return text.split('').some(char => Object.values(map).includes(char));
+    }
+
+    return false;
 }
 
 // Remove Unicode formatting
 function removeFormatting(text, style) {
-    const map = style === 'bold' ? boldMap :
-                 style === 'italic' ? italicMap : boldItalicMap;
+    const range = unicodeRanges[style];
+    if (!range) return text;
 
-    return text.split('').map(char => {
-        const index = Object.values(map).indexOf(char);
-        return index !== -1 ? Object.keys(map)[index] : char;
-    }).join('');
+    // Remove combining characters
+    if (range.combiningChar) {
+        return text.split(range.combiningChar).join('');
+    }
+
+    // Use legacy maps for backward compatibility
+    const map = style === 'bold' ? boldMap :
+                 style === 'italic' ? italicMap :
+                 style === 'boldItalic' ? boldItalicMap : null;
+
+    if (map) {
+        return text.split('').map(char => {
+            const index = Object.values(map).indexOf(char);
+            return index !== -1 ? Object.keys(map)[index] : char;
+        }).join('');
+    }
+
+    return text;
 }
 
 // Remove all Unicode formatting from text using the actual Unicode ranges
@@ -120,59 +173,59 @@ function clearFormatting(text) {
 
     console.log('clearFormatting input:', text);
 
+    // First, remove combining characters (strikethrough and underline)
+    // These need to be removed BEFORE processing individual characters
+    let result = text;
+    result = result.replace(/\u0336/g, ''); // Combining long stroke overlay (strikethrough)
+    result = result.replace(/\u0332/g, ''); // Combining low line (underline)
+
+    // Now process each character to convert formatted text back to plain
     // Use Array.from to properly handle Unicode characters (including surrogate pairs)
-    let result = Array.from(text).map(char => {
+    result = Array.from(result).map(char => {
+        // Skip whitespace characters - preserve them exactly
+        if (char === ' ' || char === '\n' || char === '\r' || char === '\t') {
+            return char;
+        }
+
         // Use codePointAt to get the actual Unicode code point (handles surrogate pairs)
         const codePoint = char.codePointAt(0);
 
-        console.log(`Processing char: "${char}" code point: 0x${codePoint.toString(16).toUpperCase()}`);
-
         // Bold (Sans-serif): U+1D5D4-U+1D607, U+1D7EC-U+1D7F5
         if (codePoint >= 0x1D5D4 && codePoint <= 0x1D5ED) {
-            // Bold uppercase A-Z
-            const result = String.fromCharCode(65 + (codePoint - 0x1D5D4));
-            console.log(`Bold uppercase detected, converting to: ${result}`);
-            return result;
+            return String.fromCharCode(65 + (codePoint - 0x1D5D4)); // Bold uppercase A-Z
         }
         if (codePoint >= 0x1D5EE && codePoint <= 0x1D607) {
-            // Bold lowercase a-z
-            const result = String.fromCharCode(97 + (codePoint - 0x1D5EE));
-            console.log(`Bold lowercase detected, converting to: ${result}`);
-            return result;
+            return String.fromCharCode(97 + (codePoint - 0x1D5EE)); // Bold lowercase a-z
         }
         if (codePoint >= 0x1D7EC && codePoint <= 0x1D7F5) {
-            // Bold numbers 0-9
-            const result = String.fromCharCode(48 + (codePoint - 0x1D7EC));
-            console.log(`Bold number detected, converting to: ${result}`);
-            return result;
+            return String.fromCharCode(48 + (codePoint - 0x1D7EC)); // Bold numbers 0-9
         }
 
         // Italic: U+1D608-U+1D63B
         if (codePoint >= 0x1D608 && codePoint <= 0x1D621) {
-            // Italic uppercase A-Z
-            const result = String.fromCharCode(65 + (codePoint - 0x1D608));
-            console.log(`Italic uppercase detected, converting to: ${result}`);
-            return result;
+            return String.fromCharCode(65 + (codePoint - 0x1D608)); // Italic uppercase A-Z
         }
         if (codePoint >= 0x1D622 && codePoint <= 0x1D63B) {
-            // Italic lowercase a-z
-            const result = String.fromCharCode(97 + (codePoint - 0x1D622));
-            console.log(`Italic lowercase detected, converting to: ${result}`);
-            return result;
+            return String.fromCharCode(97 + (codePoint - 0x1D622)); // Italic lowercase a-z
         }
 
         // Bold Italic: U+1D63C-U+1D66F
         if (codePoint >= 0x1D63C && codePoint <= 0x1D655) {
-            // Bold Italic uppercase A-Z
-            const result = String.fromCharCode(65 + (codePoint - 0x1D63C));
-            console.log(`Bold italic uppercase detected, converting to: ${result}`);
-            return result;
+            return String.fromCharCode(65 + (codePoint - 0x1D63C)); // Bold Italic uppercase A-Z
         }
         if (codePoint >= 0x1D656 && codePoint <= 0x1D66F) {
-            // Bold Italic lowercase a-z
-            const result = String.fromCharCode(97 + (codePoint - 0x1D656));
-            console.log(`Bold italic lowercase detected, converting to: ${result}`);
-            return result;
+            return String.fromCharCode(97 + (codePoint - 0x1D656)); // Bold Italic lowercase a-z
+        }
+
+        // Monospace: U+1D670-U+1D6A3, U+1D7F6-U+1D7FF
+        if (codePoint >= 0x1D670 && codePoint <= 0x1D689) {
+            return String.fromCharCode(65 + (codePoint - 0x1D670)); // Monospace uppercase A-Z
+        }
+        if (codePoint >= 0x1D68A && codePoint <= 0x1D6A3) {
+            return String.fromCharCode(97 + (codePoint - 0x1D68A)); // Monospace lowercase a-z
+        }
+        if (codePoint >= 0x1D7F6 && codePoint <= 0x1D7FF) {
+            return String.fromCharCode(48 + (codePoint - 0x1D7F6)); // Monospace numbers 0-9
         }
 
         // Also check legacy maps for backwards compatibility
@@ -181,88 +234,79 @@ function clearFormatting(text) {
             const values = Object.values(map);
             const index = values.indexOf(char);
             if (index !== -1) {
-                console.log(`Found in legacy map, converting from ${char} to ${Object.keys(map)[index]}`);
                 return Object.keys(map)[index];
             }
         }
 
         // Not a formatted character, return as-is
-        console.log(`No formatting detected, keeping as-is: ${char}`);
         return char;
     }).join('');
 
-    // Also remove bullet points
+    // Remove bullet points (but preserve spaces after them if any)
     result = result.replace(/^•\s*/gm, '');
     result = result.replace(/●\s*/g, '');
-    result = result.replace(/^•/gm, '');
 
     console.log('clearFormatting output:', result);
     return result;
 }
 
-// Create formatting toolbar
-function createFormattingBar() {
-    console.log('Creating formatting bar');
-    const formattingBar = document.createElement('div');
-    formattingBar.className = 'linkedin-formatter-bar';
-    formattingBar.style.cssText = `
-        position: absolute;
-        top: -55px;
-        left: 0;
-        right: 0;
-        background-color: #f3f6f8;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 8px 10px;
-        display: flex;
-        gap: 8px;
+// Create formatting buttons container
+function createFormattingButtons() {
+    console.log('Creating formatting buttons');
+    const container = document.createElement('div');
+    container.className = 'linkedin-formatter-buttons';
+    container.style.cssText = `
+        display: inline-flex;
+        gap: 4px;
         align-items: center;
-        z-index: 10000;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-right: 8px;
+        flex-shrink: 0;
+        white-space: nowrap;
+        vertical-align: middle;
     `;
 
     const buttons = [
-        { text: 'B', action: 'bold', style: 'font-weight: bold; font-size: 14px;', title: 'Bold (Ctrl+B)' },
-        { text: 'I', action: 'italic', style: 'font-style: italic; font-size: 14px;', title: 'Italic (Ctrl+I)' },
-        { text: 'B/I', action: 'boldItalic', style: 'font-weight: bold; font-style: italic; font-size: 13px;', title: 'Bold Italic' },
-        { text: '●', action: 'bullet', style: 'font-size: 20px; line-height: 1;', title: 'Bullet Point' },
-        { text: 'Clear', action: 'clear', style: 'font-size: 12px; color: #666;', title: 'Clear Formatting' }
+        { text: 'B', action: 'bold', title: 'Bold (Ctrl+B)' },
+        { text: 'I', action: 'italic', title: 'Italic (Ctrl+I)' },
+        { text: 'B/I', action: 'boldItalic', title: 'Bold Italic' },
+        { text: 'S̶', action: 'strikethrough', title: 'Strikethrough' },
+        { text: 'U̲', action: 'underline', title: 'Underline' },
+        { text: '𝙼', action: 'monospace', title: 'Monospace' },
+        { text: '●', action: 'bullet', title: 'Bullet Point' },
+        { text: '✕', action: 'clear', title: 'Clear Formatting' }
     ];
 
     buttons.forEach(button => {
         const btn = document.createElement('button');
         btn.textContent = button.text;
         btn.title = button.title;
+        btn.className = 'linkedin-formatter-btn';
 
-        const baseStyle = `
-            background-color: #fff;
-            border: 1px solid ${button.action === 'clear' ? '#999' : '#0a66c2'};
-            color: ${button.action === 'clear' ? '#666' : '#0a66c2'};
-            padding: 6px 12px;
+        // Style to match LinkedIn's buttons
+        btn.style.cssText = `
+            background-color: transparent;
+            border: none;
+            color: rgba(0,0,0,0.6);
+            padding: 8px;
             cursor: pointer;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-            min-width: 36px;
-            height: 36px;
+            border-radius: 50%;
+            transition: background-color 0.2s ease;
+            min-width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            ${button.style}
+            font-size: 16px;
+            font-weight: ${button.action === 'bold' || button.action === 'boldItalic' ? 'bold' : 'normal'};
+            font-style: ${button.action === 'italic' || button.action === 'boldItalic' ? 'italic' : 'normal'};
         `;
-        btn.style.cssText = baseStyle;
 
-        // Hover effects
+        // Hover effect like LinkedIn's buttons
         btn.onmouseenter = () => {
-            if (button.action === 'clear') {
-                btn.style.backgroundColor = '#666';
-                btn.style.color = '#fff';
-            } else {
-                btn.style.backgroundColor = '#0a66c2';
-                btn.style.color = '#fff';
-            }
+            btn.style.backgroundColor = 'rgba(0,0,0,0.08)';
         };
         btn.onmouseleave = () => {
-            btn.style.cssText = baseStyle;
+            btn.style.backgroundColor = 'transparent';
         };
 
         btn.onclick = (e) => {
@@ -270,16 +314,14 @@ function createFormattingBar() {
             e.stopPropagation();
             console.log(`Button clicked: ${button.action}`);
             formatText(button.action);
-
-            // Track usage
             trackUsage(button.action);
         };
 
-        formattingBar.appendChild(btn);
+        container.appendChild(btn);
     });
 
-    console.log('Formatting bar created with buttons:', buttons.map(b => b.text).join(', '));
-    return formattingBar;
+    console.log('Formatting buttons created:', buttons.map(b => b.text).join(', '));
+    return container;
 }
 
 // Track usage statistics
@@ -318,7 +360,8 @@ function formatText(action) {
 
         let formattedText = '';
 
-        if (action === 'bold' || action === 'italic' || action === 'boldItalic') {
+        if (action === 'bold' || action === 'italic' || action === 'boldItalic' ||
+            action === 'monospace' || action === 'strikethrough' || action === 'underline') {
             // Check if already formatted
             if (isFormatted(selectedText, action)) {
                 // Remove formatting
@@ -433,6 +476,121 @@ function isPostContext(element) {
     return element.offsetParent !== null;
 }
 
+// Find LinkedIn's bottom toolbar - works for posts, comments, and replies
+function findLinkedInToolbar(editor) {
+    console.log('Finding toolbar for editor:', editor);
+
+    // Determine if this is a main post or a comment
+    const isMainPost = editor.closest('[role="dialog"]') || editor.getAttribute('placeholder')?.includes('talk about');
+    const isComment = editor.closest('.comments-comment-box, [class*="comment"]') || editor.getAttribute('placeholder')?.includes('comment');
+
+    console.log('Editor type:', isMainPost ? 'Main Post' : isComment ? 'Comment' : 'Unknown');
+
+    let searchContainer = editor;
+
+    // Go up a few levels to find a reasonable search scope
+    for (let i = 0; i < 5; i++) {
+        if (searchContainer.parentElement) {
+            searchContainer = searchContainer.parentElement;
+        }
+    }
+
+    // For main posts, look for the footer with the Post button
+    if (isMainPost) {
+        console.log('Looking for main post footer toolbar');
+
+        // Look for the Post button using multiple strategies
+        const postButtons = searchContainer.querySelectorAll('button');
+        let postButton = null;
+
+        for (const btn of postButtons) {
+            const text = btn.textContent?.trim();
+            const ariaLabel = btn.getAttribute('aria-label');
+
+            // Check if this is the Post button
+            if (text === 'Post' ||
+                text === 'Share' ||
+                ariaLabel?.includes('Post') ||
+                btn.className?.includes('share-actions__primary') ||
+                btn.className?.includes('share-box-footer__primary-btn')) {
+                postButton = btn;
+                console.log('Found post button with text:', text, 'aria-label:', ariaLabel);
+                break;
+            }
+        }
+
+        if (postButton) {
+            // Find the footer that contains the post button
+            let footer = postButton.closest('[class*="footer"], [class*="share-box-footer"], [class*="share-actions"]');
+            if (footer) {
+                console.log('Found footer element:', footer.className);
+
+                // Look for the container with emoji/image buttons
+                // First try to find the emoji button in the footer
+                const footerEmojiButton = footer.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
+                if (footerEmojiButton) {
+                    const emojiContainer = footerEmojiButton.parentElement;
+                    console.log('✅ Found emoji button container in footer');
+                    return emojiContainer;
+                }
+
+                // Look for the left section of the footer (where emoji/image buttons typically are)
+                const leftSection = footer.querySelector('[class*="actions-left"], [class*="share-box-footer__actions"], [class*="share-creation"]');
+                if (leftSection) {
+                    console.log('✅ Found main post footer left section');
+                    return leftSection;
+                }
+
+                // Try to find any div that contains buttons but not the Post button
+                const buttonContainers = footer.querySelectorAll('div');
+                for (const container of buttonContainers) {
+                    // Check if this container has buttons but not the Post button
+                    const hasButtons = container.querySelector('button');
+                    const hasPostButton = container.contains(postButton);
+
+                    if (hasButtons && !hasPostButton && container.children.length > 0) {
+                        console.log('✅ Found button container in footer (without Post button)');
+                        return container;
+                    }
+                }
+
+                console.log('✅ Using main post footer as fallback');
+                return footer;
+            }
+        }
+
+        // Alternative: Look for the modal footer structure
+        const modalFooter = searchContainer.querySelector('.share-creation-state__footer, [class*="share-box"][class*="footer"]');
+        if (modalFooter) {
+            console.log('✅ Found modal footer');
+            return modalFooter;
+        }
+    }
+
+    // For comments and replies, use the emoji button parent (current working approach)
+    const emojiButton = searchContainer.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
+
+    if (emojiButton) {
+        console.log('Found emoji button:', emojiButton.getAttribute('aria-label'));
+        const toolbar = emojiButton.parentElement;
+        console.log('✅ Using emoji button parent as toolbar');
+        return toolbar;
+    }
+
+    // Fallback: Look for image/photo button
+    const imageButton = searchContainer.querySelector('button[aria-label*="photo" i], button[aria-label*="image" i], button[aria-label*="Add a" i]');
+
+    if (imageButton) {
+        console.log('Found image button:', imageButton.getAttribute('aria-label'));
+        const toolbar = imageButton.parentElement;
+        console.log('✅ Using image button parent as toolbar');
+        return toolbar;
+    }
+
+    console.warn('❌ Could not find toolbar for editor');
+    return null;
+}
+
 // Attach formatter to an editor
 function attachFormatter(editor) {
     if (state.editors.has(editor)) {
@@ -440,44 +598,58 @@ function attachFormatter(editor) {
         return;
     }
 
-    console.log('Attaching formatter to editor:', editor);
+    console.log('=== Attaching formatter ===');
+    console.log('Editor:', editor);
+    console.log('Editor classes:', editor.className);
+    console.log('Editor parent:', editor.parentElement);
+
     state.editors.add(editor);
     state.currentEditor = editor;
 
-    // Check if a bar already exists for this editor's parent
-    const parent = editor.parentNode;
-    if (!parent) {
-        console.log('Editor has no parent, cannot attach formatter');
+    // Remove any existing formatter buttons to prevent duplicates
+    const existingButtons = document.querySelectorAll('.linkedin-formatter-buttons');
+    if (existingButtons.length > 0) {
+        console.log('Removing', existingButtons.length, 'existing button sets');
+        existingButtons.forEach(btn => btn.remove());
+    }
+
+    // Find LinkedIn's bottom toolbar
+    const toolbar = findLinkedInToolbar(editor);
+    if (!toolbar) {
+        console.warn('❌ Could not find LinkedIn toolbar - buttons will not be added');
+        console.log('Editor HTML:', editor.outerHTML.substring(0, 200));
         return;
     }
 
-    // Remove any existing bars in the parent to prevent duplicates
-    const existingBars = parent.querySelectorAll('.linkedin-formatter-bar');
-    existingBars.forEach(bar => bar.remove());
+    console.log('✅ Found toolbar:', toolbar);
+    console.log('Toolbar classes:', toolbar.className);
 
-    // Create formatting bar
-    const formattingBar = createFormattingBar();
-    state.formattingBars.set(editor, formattingBar);
+    // Create formatting buttons
+    const formattingButtons = createFormattingButtons();
+    state.formattingBars.set(editor, formattingButtons);
 
-    // Only set position relative if not already set
-    const parentStyle = window.getComputedStyle(parent);
-    if (parentStyle.position === 'static') {
-        parent.style.position = 'relative';
-    }
+    // Find the emoji button to insert our buttons right before it
+    const emojiButton = toolbar.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
 
-    // Insert bar before editor
-    parent.insertBefore(formattingBar, editor);
-
-    // Only add margin if not already set
-    const currentMargin = window.getComputedStyle(editor).marginTop;
-    if (currentMargin === '0px' || currentMargin === '') {
-        editor.style.marginTop = '60px';
+    // Insert buttons right before emoji button if found, otherwise at beginning
+    try {
+        if (emojiButton) {
+            console.log('Inserting buttons before emoji button');
+            toolbar.insertBefore(formattingButtons, emojiButton);
+        } else {
+            console.log('No emoji button found, inserting at beginning');
+            toolbar.insertBefore(formattingButtons, toolbar.firstChild);
+        }
+        console.log('✅ Formatting buttons inserted successfully');
+    } catch (error) {
+        console.error('❌ Error inserting buttons:', error);
+        return;
     }
 
     // Set up removal observer
     const removalObserver = new MutationObserver(() => {
         if (!document.contains(editor)) {
-            formattingBar.remove();
+            formattingButtons.remove();
             state.editors.delete(editor);
             state.formattingBars.delete(editor);
             if (state.currentEditor === editor) {
@@ -488,11 +660,16 @@ function attachFormatter(editor) {
         }
     });
 
-    removalObserver.observe(parent, { childList: true });
+    // Observe both posts and comments containers
+    const container = editor.closest('[role="dialog"], .share-box, .share-creation-state, form, [class*="comment"]');
+    if (container) {
+        removalObserver.observe(container, { childList: true, subtree: true });
+    }
 
     // Track focus
     editor.addEventListener('focus', () => {
         state.currentEditor = editor;
+        console.log('Editor focused:', editor);
     });
 }
 
@@ -512,7 +689,7 @@ function handleMutations(mutations) {
     scanForEditors();
 }
 
-const debouncedHandleMutations = debounce(handleMutations, 500);
+const debouncedHandleMutations = debounce(handleMutations, 250);
 
 // Set up observers
 function setupObservers() {
@@ -583,16 +760,18 @@ function init() {
         setupKeyboardShortcuts();
 
         // Initial scan after a delay to let LinkedIn load
+        setTimeout(scanForEditors, 1000);
         setTimeout(scanForEditors, 2000);
+        setTimeout(scanForEditors, 3000);
 
-        // Periodic scan every 5 seconds for robustness
+        // Periodic scan every 2 seconds for robustness
         setInterval(() => {
             const editor = findPostEditor();
             if (editor && !state.editors.has(editor)) {
                 console.log('Periodic scan found new editor');
                 scanForEditors();
             }
-        }, 5000);
+        }, 2000);
 
         console.log('LinkedIn Formatter initialized successfully');
     } catch (error) {
