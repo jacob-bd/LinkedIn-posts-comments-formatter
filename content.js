@@ -136,79 +136,98 @@ function debounce(func, wait) {
 function convertToUnicode(text, style) {
     // Special case for circled text
     if (style === 'circled') {
-        return text.split('').map(char => {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
             const code = char.charCodeAt(0);
             // Uppercase A-Z → Ⓐ-Ⓩ (U+24B6 to U+24CF)
             if (code >= 65 && code <= 90) {
-                return String.fromCodePoint(0x24B6 + (code - 65));
+                result += String.fromCodePoint(0x24B6 + (code - 65));
             }
             // Lowercase a-z → ⓐ-ⓩ (U+24D0 to U+24E9)
-            if (code >= 97 && code <= 122) {
-                return String.fromCodePoint(0x24D0 + (code - 97));
+            else if (code >= 97 && code <= 122) {
+                result += String.fromCodePoint(0x24D0 + (code - 97));
             }
             // Numbers 0-9 → ⓪-⑨ (U+24EA, U+2460-2468)
-            if (code >= 48 && code <= 57) {
-                if (char === '0') return '⓪';
-                return String.fromCodePoint(0x245F + (code - 48));
+            else if (code >= 48 && code <= 57) {
+                if (char === '0') {
+                    result += '⓪';
+                } else {
+                    result += String.fromCodePoint(0x245F + (code - 48));
+                }
+            } else {
+                result += char;
             }
-            return char;
-        }).join('');
+        }
+        return result;
     }
 
     // Special case for negative circled text
     if (style === 'negativeCircled') {
-        return text.split('').map(char => {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
             const code = char.charCodeAt(0);
             // Uppercase A-Z → 🅐-🅩 (U+1F150 to U+1F169)
             if (code >= 65 && code <= 90) {
-                return String.fromCodePoint(0x1F150 + (code - 65));
+                result += String.fromCodePoint(0x1F150 + (code - 65));
             }
             // Lowercase - use uppercase negative circled
-            if (code >= 97 && code <= 122) {
-                return String.fromCodePoint(0x1F150 + (code - 97));
+            else if (code >= 97 && code <= 122) {
+                result += String.fromCodePoint(0x1F150 + (code - 97));
+            } else {
+                result += char;
             }
-            return char;
-        }).join('');
+        }
+        return result;
     }
 
     // Special case for squared text
     if (style === 'squared') {
-        return text.split('').map(char => {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
             const code = char.charCodeAt(0);
             // Uppercase A-Z → 🄰-🅉 (U+1F130 to U+1F149)
             if (code >= 65 && code <= 90) {
-                return String.fromCodePoint(0x1F130 + (code - 65));
+                result += String.fromCodePoint(0x1F130 + (code - 65));
             }
             // Lowercase - use uppercase squared
-            if (code >= 97 && code <= 122) {
-                return String.fromCodePoint(0x1F130 + (code - 97));
+            else if (code >= 97 && code <= 122) {
+                result += String.fromCodePoint(0x1F130 + (code - 97));
+            } else {
+                result += char;
             }
-            return char;
-        }).join('');
+        }
+        return result;
     }
 
     // Special case for fullwidth text
     if (style === 'fullwidth') {
-        return text.split('').map(char => {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
             const code = char.charCodeAt(0);
             // Uppercase A-Z → Ａ-Ｚ (U+FF21 to U+FF3A)
             if (code >= 65 && code <= 90) {
-                return String.fromCodePoint(0xFF21 + (code - 65));
+                result += String.fromCodePoint(0xFF21 + (code - 65));
             }
             // Lowercase a-z → ａ-ｚ (U+FF41 to U+FF5A)
-            if (code >= 97 && code <= 122) {
-                return String.fromCodePoint(0xFF41 + (code - 97));
+            else if (code >= 97 && code <= 122) {
+                result += String.fromCodePoint(0xFF41 + (code - 97));
             }
             // Numbers 0-9 → ０-９ (U+FF10 to U+FF19)
-            if (code >= 48 && code <= 57) {
-                return String.fromCodePoint(0xFF10 + (code - 48));
+            else if (code >= 48 && code <= 57) {
+                result += String.fromCodePoint(0xFF10 + (code - 48));
             }
             // Space → fullwidth space
-            if (code === 32) {
-                return String.fromCodePoint(0x3000);
+            else if (code === 32) {
+                result += String.fromCodePoint(0x3000);
+            } else {
+                result += char;
             }
-            return char;
-        }).join('');
+        }
+        return result;
     }
 
     // Special case for script text (has some exceptions)
@@ -223,7 +242,12 @@ function convertToUnicode(text, style) {
             'o': '𝑜', 'p': '𝓅', 'q': '𝓆', 'r': '𝓇', 's': '𝓈', 't': '𝓉', 'u': '𝓊',
             'v': '𝓋', 'w': '𝓌', 'x': '𝓍', 'y': '𝓎', 'z': '𝓏'
         };
-        return text.split('').map(char => scriptMap[char] || char).join('');
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            result += scriptMap[char] || char;
+        }
+        return result;
     }
 
     const range = unicodeRanges[style];
@@ -231,36 +255,41 @@ function convertToUnicode(text, style) {
 
     // Handle combining characters (strikethrough, underline)
     if (range.combiningChar) {
-        return text.split('').map(char => {
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
             // Don't add combining char to spaces or special chars
             if (char === ' ' || char === '\n' || char === '\r') {
-                return char;
+                result += char;
+            } else {
+                result += char + range.combiningChar;
             }
-            return char + range.combiningChar;
-        }).join('');
+        }
+        return result;
     }
 
     // Handle regular Unicode ranges (bold, italic, monospace, etc.)
-    return text.split('').map(char => {
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
         const code = char.charCodeAt(0);
 
         // Uppercase A-Z (65-90)
         if (code >= 65 && code <= 90 && range.uppercase) {
-            return String.fromCodePoint(code - 65 + range.uppercase);
+            result += String.fromCodePoint(code - 65 + range.uppercase);
         }
-
         // Lowercase a-z (97-122)
-        if (code >= 97 && code <= 122 && range.lowercase) {
-            return String.fromCodePoint(code - 97 + range.lowercase);
+        else if (code >= 97 && code <= 122 && range.lowercase) {
+            result += String.fromCodePoint(code - 97 + range.lowercase);
         }
-
         // Numbers 0-9 (48-57)
-        if (code >= 48 && code <= 57 && range.numbers) {
-            return String.fromCodePoint(code - 48 + range.numbers);
+        else if (code >= 48 && code <= 57 && range.numbers) {
+            result += String.fromCodePoint(code - 48 + range.numbers);
+        } else {
+            result += char; // Keep original if no mapping
         }
-
-        return char; // Keep original if no mapping
-    }).join('');
+    }
+    return result;
 }
 
 // Check if text is already formatted
@@ -273,13 +302,34 @@ function isFormatted(text, style) {
         return text.includes(range.combiningChar);
     }
 
-    // Check legacy maps for backward compatibility
+    // Use reverse maps for O(1) lookup instead of O(n) Object.values().includes()
+    const reverseMap = style === 'bold' ? reverseBoldMap :
+                       style === 'italic' ? reverseItalicMap :
+                       style === 'boldItalic' ? reverseBoldItalicMap : null;
+
+    if (reverseMap) {
+        // Check if any character exists in reverse map (means it's formatted)
+        for (let i = 0; i < text.length; i++) {
+            if (reverseMap[text[i]]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Fallback: Check legacy maps for backward compatibility (shouldn't reach here for bold/italic/boldItalic)
     const map = style === 'bold' ? boldMap :
                  style === 'italic' ? italicMap :
                  style === 'boldItalic' ? boldItalicMap : null;
 
     if (map) {
-        return text.split('').some(char => Object.values(map).includes(char));
+        // Last resort: check against map values (for styles without reverse maps)
+        for (let i = 0; i < text.length; i++) {
+            if (Object.values(map).includes(text[i])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     return false;
@@ -290,9 +340,11 @@ function removeFormatting(text, style) {
     const range = unicodeRanges[style];
     if (!range) return text;
 
-    // Remove combining characters
+    // Remove combining characters using regex replace (more efficient than split/join)
     if (range.combiningChar) {
-        return text.split(range.combiningChar).join('');
+        // Escape the combining character for regex
+        const escaped = range.combiningChar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return text.replace(new RegExp(escaped, 'g'), '');
     }
 
     // Use reverse lookup maps for O(1) performance instead of O(n) indexOf
@@ -301,7 +353,12 @@ function removeFormatting(text, style) {
                        style === 'boldItalic' ? reverseBoldItalicMap : null;
 
     if (reverseMap) {
-        return text.split('').map(char => reverseMap[char] || char).join('');
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            result += reverseMap[char] || char;
+        }
+        return result;
     }
 
     return text;
@@ -1068,25 +1125,35 @@ function attachFormatter(editor) {
         for (const btn of toolbarButtons) {
             const text = btn.textContent?.trim();
             const ariaLabel = btn.getAttribute('aria-label');
-            if (text === 'Post' || ariaLabel?.includes('Post') ||
+            // Expanded search for Post button - handles Groups and main feed
+            if (text === 'Post' || text === 'Share' || 
+                ariaLabel?.includes('Post') || ariaLabel?.includes('Share') ||
                 btn.className?.includes('share-actions__primary') ||
-                btn.className?.includes('primary-action')) {
+                btn.className?.includes('primary-action') ||
+                btn.className?.includes('share-box__submit') ||
+                btn.getAttribute('type') === 'submit') {
                 postButton = btn;
                 break;
             }
         }
 
-        // If not found in toolbar, search in parent container and siblings
+        // If not found in toolbar, search more broadly in parent containers and siblings
+        // Groups may have the Post button further up in the DOM tree
         if (!postButton) {
             let searchContainer = toolbar.parentElement;
-            for (let i = 0; i < 5 && searchContainer && searchContainer !== document.body; i++) {
+            // Increased search depth for Groups
+            for (let i = 0; i < 8 && searchContainer && searchContainer !== document.body; i++) {
                 const allButtons = searchContainer.querySelectorAll('button');
                 for (const btn of allButtons) {
                     const text = btn.textContent?.trim();
                     const ariaLabel = btn.getAttribute('aria-label');
-                    if (text === 'Post' || ariaLabel?.includes('Post') ||
+                    // Expanded search for Post button - handles Groups and main feed
+                    if (text === 'Post' || text === 'Share' ||
+                        ariaLabel?.includes('Post') || ariaLabel?.includes('Share') ||
                         btn.className?.includes('share-actions__primary') ||
-                        btn.className?.includes('primary-action')) {
+                        btn.className?.includes('primary-action') ||
+                        btn.className?.includes('share-box__submit') ||
+                        btn.getAttribute('type') === 'submit') {
                         postButton = btn;
                         footerContainer = searchContainer;
                         break;
@@ -1096,10 +1163,33 @@ function attachFormatter(editor) {
                 searchContainer = searchContainer.parentElement;
             }
         }
+        
+        // Additional search: look for submit buttons near the toolbar (Groups often use form submissions)
+        if (!postButton) {
+            const form = toolbar.closest('form');
+            if (form) {
+                const submitButtons = form.querySelectorAll('button[type="submit"], button:not([type])');
+                for (const btn of submitButtons) {
+                    const text = btn.textContent?.trim();
+                    const ariaLabel = btn.getAttribute('aria-label');
+                    if (text === 'Post' || text === 'Share' ||
+                        ariaLabel?.includes('Post') || ariaLabel?.includes('Share')) {
+                        postButton = btn;
+                        // Find the footer container - could be form or a parent div
+                        footerContainer = btn.closest('.share-box, .share-creation-state, [class*="share"], form') || btn.parentElement;
+                        break;
+                    }
+                }
+            }
+        }
 
         if (postButton && footerContainer && footerContainer !== document.body) {
-            // Ensure footer container uses flexbox with space-between (CSS class handles styling)
+            // Ensure footer container uses flexbox with space-between (use setProperty for !important)
             footerContainer.classList.add('linkedin-formatter-footer-container');
+            footerContainer.style.setProperty('display', 'flex', 'important');
+            footerContainer.style.setProperty('justify-content', 'space-between', 'important');
+            footerContainer.style.setProperty('align-items', 'center', 'important');
+            footerContainer.style.setProperty('width', '100%', 'important');
 
             // Check if we've already created sections (cache query results)
             let leftSection = footerContainer.querySelector('.linkedin-formatter-left-section');
@@ -1110,12 +1200,15 @@ function attachFormatter(editor) {
                 // Create left section for formatting buttons and existing toolbar items
                 leftSection = document.createElement('div');
                 leftSection.className = 'linkedin-formatter-left-section';
-                // CSS class handles all styling, no inline styles needed
+                leftSection.style.display = 'flex';
+                leftSection.style.alignItems = 'center';
+                leftSection.style.flex = '1';
 
                 // Create right section for Post button
                 rightSection = document.createElement('div');
                 rightSection.className = 'linkedin-formatter-right-section';
-                // CSS class handles all styling, no inline styles needed
+                rightSection.style.display = 'flex';
+                rightSection.style.alignItems = 'center';
 
                 // Collect all direct children of footerContainer to reorganize
                 const footerChildren = Array.from(footerContainer.children);
@@ -1129,6 +1222,15 @@ function attachFormatter(editor) {
                     } else if (child === toolbar || child.contains(toolbar)) {
                         // This is the toolbar or contains toolbar, move to left section
                         footerContainer.removeChild(child);
+                        // Ensure toolbar aligns to the left within leftSection (use setProperty for !important)
+                        if (child === toolbar) {
+                            toolbar.style.setProperty('justify-content', 'flex-start', 'important');
+                            toolbar.style.setProperty('display', 'flex', 'important');
+                        } else if (child.contains(toolbar)) {
+                            // Toolbar is nested, style the container
+                            child.style.setProperty('justify-content', 'flex-start', 'important');
+                            child.style.setProperty('display', 'flex', 'important');
+                        }
                         leftSection.appendChild(child);
                     } else if (!child.classList.contains('linkedin-formatter-left-section') &&
                                !child.classList.contains('linkedin-formatter-right-section')) {
@@ -1141,24 +1243,43 @@ function attachFormatter(editor) {
                 // Add sections to footer
                 footerContainer.appendChild(leftSection);
                 footerContainer.appendChild(rightSection);
+            } else {
+                // Sections already exist, ensure they're still properly styled
+                leftSection.style.display = 'flex';
+                leftSection.style.alignItems = 'center';
+                leftSection.style.flex = '1';
+                rightSection.style.display = 'flex';
+                rightSection.style.alignItems = 'center';
             }
             // Reuse cached leftSection and rightSection variables (no need to re-query)
 
             // Insert formatting buttons into the toolbar (which should be in leftSection)
             // The toolbar reference is still valid
             if (leftSection && leftSection.contains(toolbar)) {
+                // Ensure toolbar aligns content to the left (use setProperty for !important)
+                toolbar.style.setProperty('justify-content', 'flex-start', 'important');
+                toolbar.style.setProperty('display', 'flex', 'important');
                 toolbar.insertBefore(formattingButtons, toolbar.firstChild);
             } else if (leftSection) {
                 // Toolbar might be nested, find it or insert at start of left section
                 const nestedToolbar = leftSection.contains(toolbar) ? toolbar : leftSection.querySelector('div') || leftSection;
+                if (nestedToolbar === toolbar) {
+                    toolbar.style.setProperty('justify-content', 'flex-start', 'important');
+                    toolbar.style.setProperty('display', 'flex', 'important');
+                }
                 nestedToolbar.insertBefore(formattingButtons, nestedToolbar.firstChild);
             } else {
                 // Fallback: insert into toolbar directly
+                toolbar.style.setProperty('justify-content', 'flex-start', 'important');
+                toolbar.style.setProperty('display', 'flex', 'important');
                 toolbar.insertBefore(formattingButtons, toolbar.firstChild);
             }
             log('✅ Formatting buttons inserted in left section, aligned with Post button');
         } else {
-            // Fallback: insert at beginning (toolbar should already have flex styling from LinkedIn)
+            // Fallback: ensure toolbar uses flex and insert at beginning (use setProperty for !important)
+            toolbar.style.setProperty('display', 'flex', 'important');
+            toolbar.style.setProperty('justify-content', 'flex-start', 'important');
+            toolbar.style.setProperty('align-items', 'center', 'important');
             toolbar.insertBefore(formattingButtons, toolbar.firstChild);
             log('✅ Formatting buttons inserted (fallback - Post button not found)');
         }
