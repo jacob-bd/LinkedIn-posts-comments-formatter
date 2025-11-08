@@ -1,6 +1,22 @@
 // LinkedIn Post Formatter - Enhanced Version
 // Tracks editors and manages formatting functionality
 
+// Inject CSS to override LinkedIn's toolbar centering
+function injectToolbarStyles() {
+    const styleId = 'linkedin-formatter-toolbar-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+        /* Keep buttons inline without forcing new line */
+        .linkedin-formatter-buttons {
+            margin-right: 8px !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // State management using WeakSet for automatic garbage collection
 const state = {
     editors: new WeakSet(),
@@ -253,16 +269,16 @@ function clearFormatting(text) {
 // Create formatting buttons container
 function createFormattingButtons() {
     console.log('Creating formatting buttons');
+
+    // Simple container
     const container = document.createElement('div');
     container.className = 'linkedin-formatter-buttons';
     container.style.cssText = `
         display: inline-flex;
         gap: 4px;
         align-items: center;
-        margin-right: 8px;
         flex-shrink: 0;
         white-space: nowrap;
-        vertical-align: middle;
     `;
 
     const buttons = [
@@ -643,21 +659,12 @@ function attachFormatter(editor) {
     // Find the emoji button to insert our buttons right before it
     const emojiButton = toolbar.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
 
-    // Insert buttons with appropriate placement
+    // Don't modify toolbar layout - keep buttons inline
+
+    // Always insert at the beginning for left alignment
     try {
-        if (isMainPost && !emojiButton) {
-            // For main posts without emoji button, insert at the beginning
-            console.log('Main post footer - inserting at beginning');
-            toolbar.insertBefore(formattingButtons, toolbar.firstChild);
-        } else if (emojiButton) {
-            // Insert before emoji button (works for both comments and posts with emoji)
-            console.log('Inserting buttons before emoji button');
-            toolbar.insertBefore(formattingButtons, emojiButton);
-        } else {
-            // Default: insert at beginning
-            console.log('No emoji button found, inserting at beginning');
-            toolbar.insertBefore(formattingButtons, toolbar.firstChild);
-        }
+        console.log('Inserting buttons at beginning of toolbar');
+        toolbar.insertBefore(formattingButtons, toolbar.firstChild);
         console.log('✅ Formatting buttons inserted successfully');
     } catch (error) {
         console.error('❌ Error inserting buttons:', error);
@@ -774,6 +781,7 @@ function init() {
     console.log('LinkedIn Formatter - Enhanced Version initializing...');
 
     try {
+        injectToolbarStyles();
         setupObservers();
         setupKeyboardShortcuts();
 
