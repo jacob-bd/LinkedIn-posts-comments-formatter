@@ -3,7 +3,7 @@
   "name": "LinkedIn Post Formatter",
   "version": "2.0",
   "description": "Advanced text formatting for LinkedIn posts with Unicode styling (bold, italic, bullets) and keyboard shortcuts",
-  "permissions": ["storage", "activeTab", "notifications"],
+  "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://www.linkedin.com/*"
   ],

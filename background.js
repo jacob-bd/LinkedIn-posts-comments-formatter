@@ -63,7 +63,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'updateSettings') {
-    chrome.storage.local.set({ settings: request.settings }, () => {
+    // Validate settings schema before storing
+    const validSettings = {
+      enabled: typeof request.settings?.enabled === 'boolean' ? request.settings.enabled : true,
+      keyboardShortcuts: typeof request.settings?.keyboardShortcuts === 'boolean' ? request.settings.keyboardShortcuts : true,
+      autoAttach: typeof request.settings?.autoAttach === 'boolean' ? request.settings.autoAttach : true
+    };
+    chrome.storage.local.set({ settings: validSettings }, () => {
       sendResponse({ success: true });
     });
     return true; // Async response

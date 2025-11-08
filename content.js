@@ -1,6 +1,11 @@
 // LinkedIn Post Formatter - Enhanced Version
 // Tracks editors and manages formatting functionality
 
+// Debug mode - set to false for production to prevent logging user content
+const DEBUG = false;
+const log = DEBUG ? console.log.bind(console) : () => {};
+const logError = console.error.bind(console); // Always log errors
+
 // Inject CSS to override LinkedIn's toolbar centering
 function injectToolbarStyles() {
     const styleId = 'linkedin-formatter-toolbar-styles';
@@ -289,7 +294,7 @@ function removeFormatting(text, style) {
 function clearFormatting(text) {
     if (!text) return '';
 
-    console.log('clearFormatting input:', text);
+    log('clearFormatting - processing text of length:', text?.length || 0);
 
     // First, remove combining characters (strikethrough and underline)
     // These need to be removed BEFORE processing individual characters
@@ -367,7 +372,7 @@ function clearFormatting(text) {
     // Remove numbered lists (e.g., "1. ", "2) ", etc.)
     result = result.replace(/^\d+[\.\)]\s+/gm, '');
 
-    console.log('clearFormatting output:', result);
+    log('clearFormatting - output text length:', result?.length || 0);
     return result;
 }
 
@@ -376,7 +381,7 @@ function saveSelection() {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
         state.savedSelection = selection.getRangeAt(0).cloneRange();
-        console.log('Selection saved:', state.savedSelection.toString());
+        log('Selection saved - length:', state.savedSelection?.toString().length || 0);
     }
 }
 
@@ -386,7 +391,7 @@ function restoreSelection() {
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(state.savedSelection);
-        console.log('Selection restored:', state.savedSelection.toString());
+        log('Selection restored - length:', state.savedSelection?.toString().length || 0);
     }
 }
 
@@ -467,7 +472,7 @@ function createFontDropdown() {
 
 // Create formatting buttons container
 function createFormattingButtons() {
-    console.log('Creating formatting buttons');
+    log('Creating formatting buttons');
 
     // Simple container
     const container = document.createElement('div');
@@ -579,7 +584,7 @@ function createFormattingButtons() {
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Font dropdown button clicked');
+                log('Font dropdown button clicked');
 
                 // Toggle dropdown visibility
                 const isVisible = dropdown.style.display === 'block';
@@ -596,7 +601,7 @@ function createFormattingButtons() {
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log(`Button clicked: ${button.action}`);
+                log(`Button clicked: ${button.action}`);
                 formatText(button.action);
                 trackUsage(button.action);
             };
@@ -605,7 +610,7 @@ function createFormattingButtons() {
         container.appendChild(btn);
     });
 
-    console.log('Formatting buttons created:', buttons.map(b => b.text).join(', '));
+    log('Formatting buttons created:', buttons.map(b => b.text).join(', '));
     return container;
 }
 
@@ -620,18 +625,18 @@ function trackUsage(action) {
             chrome.storage.local.set({ usage });
         });
     } catch (error) {
-        console.log('Usage tracking failed:', error);
+        log('Usage tracking failed:', error);
     }
 }
 
 // Enhanced text formatting with better LinkedIn compatibility
 function formatText(action) {
-    console.log(`Formatting text: ${action}, selected text length:`, window.getSelection().toString().length);
+    log(`Formatting text: ${action}, selected length:`, window.getSelection().toString().length);
 
     try {
         const selection = window.getSelection();
         if (!selection.rangeCount) {
-            console.log('No selection range available');
+            log('No selection range available');
             return;
         }
 
@@ -639,7 +644,7 @@ function formatText(action) {
         let selectedText = range.toString();
 
         if (selectedText.length === 0 && action !== 'bullet') {
-            console.log('No text selected for formatting');
+            log('No text selected for formatting');
             return;
         }
 
@@ -653,11 +658,11 @@ function formatText(action) {
             if (isFormatted(selectedText, action)) {
                 // Remove formatting
                 formattedText = removeFormatting(selectedText, action);
-                console.log('Removing formatting:', action);
+                log('Removing formatting:', action);
             } else {
                 // Add formatting using enhanced Unicode conversion
                 formattedText = convertToUnicode(selectedText, action);
-                console.log('Adding formatting:', action);
+                log('Adding formatting:', action);
             }
         } else if (action === 'bullet') {
             // For bullet points, we need to handle the DOM structure directly
@@ -778,13 +783,13 @@ function formatText(action) {
             }
         } else if (action === 'clear') {
             // Clear all formatting
-            console.log('Clearing formatting from:', selectedText);
+            log('Clearing formatting from text length:', selectedText?.length || 0);
             formattedText = clearFormatting(selectedText);
-            console.log('Cleared result:', formattedText);
+            log('Cleared result length:', formattedText?.length || 0);
         }
 
         if (!formattedText && formattedText !== '') {
-            console.error('No formatted text generated');
+            logError('No formatted text generated');
             return;
         }
 
@@ -829,15 +834,15 @@ function formatText(action) {
                     try {
                         editor.dispatchEvent(event);
                     } catch (e) {
-                        console.log('Event dispatch error:', e);
+                        log('Event dispatch error:', e);
                     }
                 });
             }, 0);
         }
 
-        console.log('Formatting applied successfully:', formattedText.substring(0, 50));
+        log('Formatting applied successfully - length:', formattedText?.length || 0);
     } catch (error) {
-        console.error('Error applying formatting:', error);
+        logError('Error applying formatting:', error);
     }
 }
 
@@ -875,14 +880,14 @@ function isPostContext(element) {
 
 // Find LinkedIn's bottom toolbar - works for posts, comments, and replies
 function findLinkedInToolbar(editor) {
-    console.log('Finding toolbar for editor:', editor);
+    log('Finding toolbar for editor:', editor);
 
     // First determine if this is a main post or a comment
     const isMainPost = editor.closest('[role="dialog"]') ||
                        editor.getAttribute('placeholder')?.includes('talk about') ||
                        editor.getAttribute('aria-label')?.includes('post');
 
-    console.log('Context:', isMainPost ? 'MAIN POST' : 'COMMENT/REPLY');
+    log('Context:', isMainPost ? 'MAIN POST' : 'COMMENT/REPLY');
 
     let searchContainer = editor;
 
@@ -895,7 +900,7 @@ function findLinkedInToolbar(editor) {
 
     // SPECIAL HANDLING FOR MAIN POSTS - Find the Post button footer
     if (isMainPost) {
-        console.log('Main post detected - looking for Post button footer');
+        log('Main post detected - looking for Post button footer');
 
         // Find the Post button
         const allButtons = searchContainer.querySelectorAll('button');
@@ -910,7 +915,7 @@ function findLinkedInToolbar(editor) {
                 btn.className?.includes('share-actions__primary') ||
                 btn.className?.includes('primary-action')) {
                 postButton = btn;
-                console.log('Found Post button:', text);
+                log('Found Post button:', text);
                 break;
             }
         }
@@ -927,7 +932,7 @@ function findLinkedInToolbar(editor) {
             }
 
             if (footer) {
-                console.log('Found footer with Post button:', footer.className);
+                log('Found footer with Post button:', footer.className);
 
                 // Find or create a container for our buttons in the footer
                 // Look for child divs that might contain action buttons
@@ -942,20 +947,20 @@ function findLinkedInToolbar(editor) {
                     // Check if this div has buttons (likely the action area)
                     const hasButtons = div.querySelector('button');
                     if (hasButtons) {
-                        console.log('✅ Found action button area in footer');
+                        log('✅ Found action button area in footer');
                         return div;
                     }
                 }
 
                 // If no action area found, use the footer itself
-                console.log('✅ Using footer container for main post');
+                log('✅ Using footer container for main post');
                 return footer;
             }
         }
     }
 
     // FOR COMMENTS AND REPLIES - Use the emoji button parent (KEEP AS IS - IT'S WORKING!)
-    console.log('Looking for emoji button for comment/reply');
+    log('Looking for emoji button for comment/reply');
 
     // Try multiple emoji button selectors
     const emojiSelectors = [
@@ -970,14 +975,14 @@ function findLinkedInToolbar(editor) {
     for (const selector of emojiSelectors) {
         emojiButton = searchContainer.querySelector(selector);
         if (emojiButton) {
-            console.log(`Found emoji button with selector: ${selector}`);
+            log(`Found emoji button with selector: ${selector}`);
             break;
         }
     }
 
     if (emojiButton) {
         const toolbar = emojiButton.parentElement;
-        console.log('✅ Using emoji button parent as toolbar (comment/reply)');
+        log('✅ Using emoji button parent as toolbar (comment/reply)');
         return toolbar;
     }
 
@@ -985,9 +990,9 @@ function findLinkedInToolbar(editor) {
     const imageButton = searchContainer.querySelector('button[aria-label*="photo" i], button[aria-label*="image" i], button[aria-label*="Add a" i]');
 
     if (imageButton) {
-        console.log('Found image button as fallback:', imageButton.getAttribute('aria-label'));
+        log('Found image button as fallback:', imageButton.getAttribute('aria-label'));
         const toolbar = imageButton.parentElement;
-        console.log('✅ Using image button parent as toolbar');
+        log('✅ Using image button parent as toolbar');
         return toolbar;
     }
 
@@ -998,14 +1003,14 @@ function findLinkedInToolbar(editor) {
 // Attach formatter to an editor
 function attachFormatter(editor) {
     if (state.editors.has(editor)) {
-        console.log('Formatter already attached to this editor');
+        log('Formatter already attached to this editor');
         return;
     }
 
-    console.log('=== Attaching formatter ===');
-    console.log('Editor:', editor);
-    console.log('Editor classes:', editor.className);
-    console.log('Editor parent:', editor.parentElement);
+    log('=== Attaching formatter ===');
+    log('Editor:', editor);
+    log('Editor classes:', editor.className);
+    log('Editor parent:', editor.parentElement);
 
     state.editors.add(editor);
     state.currentEditor = editor;
@@ -1013,7 +1018,7 @@ function attachFormatter(editor) {
     // Remove any existing formatter buttons to prevent duplicates
     const existingButtons = document.querySelectorAll('.linkedin-formatter-buttons');
     if (existingButtons.length > 0) {
-        console.log('Removing', existingButtons.length, 'existing button sets');
+        log('Removing', existingButtons.length, 'existing button sets');
         existingButtons.forEach(btn => btn.remove());
     }
 
@@ -1021,12 +1026,12 @@ function attachFormatter(editor) {
     const toolbar = findLinkedInToolbar(editor);
     if (!toolbar) {
         console.warn('❌ Could not find LinkedIn toolbar - buttons will not be added');
-        console.log('Editor HTML:', editor.outerHTML.substring(0, 200));
+        log('Editor found - tag:', editor.tagName, 'classes:', editor.className?.substring(0, 50));
         return;
     }
 
-    console.log('✅ Found toolbar:', toolbar);
-    console.log('Toolbar classes:', toolbar.className);
+    log('✅ Found toolbar:', toolbar);
+    log('Toolbar classes:', toolbar.className);
 
     // Create formatting buttons
     const formattingButtons = createFormattingButtons();
@@ -1044,11 +1049,11 @@ function attachFormatter(editor) {
 
     // Always insert at the beginning for left alignment
     try {
-        console.log('Inserting buttons at beginning of toolbar');
+        log('Inserting buttons at beginning of toolbar');
         toolbar.insertBefore(formattingButtons, toolbar.firstChild);
-        console.log('✅ Formatting buttons inserted successfully');
+        log('✅ Formatting buttons inserted successfully');
     } catch (error) {
-        console.error('❌ Error inserting buttons:', error);
+        logError('❌ Error inserting buttons:', error);
         return;
     }
 
@@ -1062,7 +1067,7 @@ function attachFormatter(editor) {
                 state.currentEditor = null;
             }
             removalObserver.disconnect();
-            console.log('Editor removed, cleaned up formatter');
+            log('Editor removed, cleaned up formatter');
         }
     });
 
@@ -1075,13 +1080,13 @@ function attachFormatter(editor) {
     // Track focus
     editor.addEventListener('focus', () => {
         state.currentEditor = editor;
-        console.log('Editor focused:', editor);
+        log('Editor focused:', editor);
     });
 }
 
 // Scan for editors and attach formatters
 function scanForEditors() {
-    console.log('Scanning for post editors...');
+    log('Scanning for post editors...');
     const editor = findPostEditor();
 
     if (editor && !state.editors.has(editor)) {
@@ -1111,7 +1116,7 @@ function setupObservers() {
     const urlCheckInterval = setInterval(() => {
         const currentUrl = location.href;
         if (currentUrl !== lastUrl) {
-            console.log('URL changed from', lastUrl, 'to', currentUrl);
+            log('URL changed from', lastUrl, 'to', currentUrl);
             lastUrl = currentUrl;
             // Clear existing editors tracking
             state.editors = new WeakSet();
@@ -1120,7 +1125,7 @@ function setupObservers() {
         }
     }, 1000);
 
-    console.log('Observers set up successfully');
+    log('Observers set up successfully');
 }
 
 // Keyboard shortcuts
@@ -1144,22 +1149,32 @@ function setupKeyboardShortcuts() {
         }
     });
 
-    console.log('Keyboard shortcuts set up');
+    log('Keyboard shortcuts set up');
 }
+
+// Whitelist of allowed formatting actions
+const ALLOWED_ACTIONS = [
+    'bold', 'italic', 'boldItalic', 'strikethrough', 'underline',
+    'monospace', 'sansSerif', 'script', 'circled', 'negativeCircled',
+    'squared', 'fullwidth', 'bullet', 'numbered', 'clear'
+];
 
 // Message listener for extension communication
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    console.log('Message received:', request);
-    if (request.action) {
+    log('Message received:', request.action);
+    if (request.action && ALLOWED_ACTIONS.includes(request.action)) {
         formatText(request.action);
         sendResponse({ success: true });
+    } else if (request.action) {
+        logError('Invalid action received:', request.action);
+        sendResponse({ success: false, error: 'Invalid action' });
     }
     return true;
 });
 
 // Initialize the extension
 function init() {
-    console.log('LinkedIn Formatter - Enhanced Version initializing...');
+    log('LinkedIn Formatter - Enhanced Version initializing...');
 
     try {
         injectToolbarStyles();
@@ -1175,14 +1190,14 @@ function init() {
         setInterval(() => {
             const editor = findPostEditor();
             if (editor && !state.editors.has(editor)) {
-                console.log('Periodic scan found new editor');
+                log('Periodic scan found new editor');
                 scanForEditors();
             }
         }, 2000);
 
-        console.log('LinkedIn Formatter initialized successfully');
+        log('LinkedIn Formatter initialized successfully');
     } catch (error) {
-        console.error('Error initializing LinkedIn Formatter:', error);
+        logError('Error initializing LinkedIn Formatter:', error);
         // Retry initialization after delay
         setTimeout(init, 2000);
     }
@@ -1197,7 +1212,7 @@ if (document.readyState === 'loading') {
 
 // Error recovery
 window.addEventListener('error', (e) => {
-    console.error('Extension error:', e);
+    logError('Extension error:', e);
 });
 
-console.log('LinkedIn Formatter script loaded');
+log('LinkedIn Formatter script loaded');
