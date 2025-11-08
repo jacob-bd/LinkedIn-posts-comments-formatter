@@ -425,6 +425,68 @@ function clearFormatting(text) {
             return String.fromCharCode(48 + (codePoint - 0x1D7F6)); // Monospace numbers 0-9
         }
 
+        // Sans-serif: U+1D5A0-U+1D5B9, U+1D5BA-U+1D5D3, U+1D7E2-U+1D7EB
+        if (codePoint >= 0x1D5A0 && codePoint <= 0x1D5B9) {
+            return String.fromCharCode(65 + (codePoint - 0x1D5A0)); // Sans-serif uppercase A-Z
+        }
+        if (codePoint >= 0x1D5BA && codePoint <= 0x1D5D3) {
+            return String.fromCharCode(97 + (codePoint - 0x1D5BA)); // Sans-serif lowercase a-z
+        }
+        if (codePoint >= 0x1D7E2 && codePoint <= 0x1D7EB) {
+            return String.fromCharCode(48 + (codePoint - 0x1D7E2)); // Sans-serif numbers 0-9
+        }
+
+        // Script: U+1D49C-U+1D4CF (uppercase), U+1D4B6-U+1D4E9 (lowercase)
+        // Note: Script has some exceptions, but we'll handle the main ranges
+        if (codePoint >= 0x1D49C && codePoint <= 0x1D4CF) {
+            return String.fromCharCode(65 + (codePoint - 0x1D49C)); // Script uppercase A-Z
+        }
+        if (codePoint >= 0x1D4B6 && codePoint <= 0x1D4E9) {
+            return String.fromCharCode(97 + (codePoint - 0x1D4B6)); // Script lowercase a-z
+        }
+
+        // Circled: U+24B6-U+24CF (uppercase), U+24D0-U+24E9 (lowercase), U+24EA (0), U+2460-U+2468 (1-9)
+        if (codePoint >= 0x24B6 && codePoint <= 0x24CF) {
+            return String.fromCharCode(65 + (codePoint - 0x24B6)); // Circled uppercase A-Z
+        }
+        if (codePoint >= 0x24D0 && codePoint <= 0x24E9) {
+            return String.fromCharCode(97 + (codePoint - 0x24D0)); // Circled lowercase a-z
+        }
+        if (codePoint === 0x24EA) {
+            return '0'; // Circled 0
+        }
+        if (codePoint >= 0x2460 && codePoint <= 0x2468) {
+            return String.fromCharCode(49 + (codePoint - 0x2460)); // Circled 1-9
+        }
+
+        // Negative Circled: U+1F150-U+1F169 (uppercase and lowercase)
+        if (codePoint >= 0x1F150 && codePoint <= 0x1F169) {
+            // Both uppercase and lowercase map to the same range, convert to uppercase
+            const offset = codePoint - 0x1F150;
+            return String.fromCharCode(65 + offset); // Negative circled A-Z
+        }
+
+        // Squared: U+1F130-U+1F149 (uppercase and lowercase)
+        if (codePoint >= 0x1F130 && codePoint <= 0x1F149) {
+            // Both uppercase and lowercase map to the same range, convert to uppercase
+            const offset = codePoint - 0x1F130;
+            return String.fromCharCode(65 + offset); // Squared A-Z
+        }
+
+        // Fullwidth: U+FF21-U+FF3A (uppercase), U+FF41-U+FF5A (lowercase), U+FF10-U+FF19 (numbers), U+3000 (space)
+        if (codePoint >= 0xFF21 && codePoint <= 0xFF3A) {
+            return String.fromCharCode(65 + (codePoint - 0xFF21)); // Fullwidth uppercase A-Z
+        }
+        if (codePoint >= 0xFF41 && codePoint <= 0xFF5A) {
+            return String.fromCharCode(97 + (codePoint - 0xFF41)); // Fullwidth lowercase a-z
+        }
+        if (codePoint >= 0xFF10 && codePoint <= 0xFF19) {
+            return String.fromCharCode(48 + (codePoint - 0xFF10)); // Fullwidth numbers 0-9
+        }
+        if (codePoint === 0x3000) {
+            return ' '; // Fullwidth space → regular space
+        }
+
         // Also check reverse legacy maps for backwards compatibility (O(1) lookup)
         const reverseMaps = [reverseBoldMap, reverseItalicMap, reverseBoldItalicMap];
         for (const reverseMap of reverseMaps) {
