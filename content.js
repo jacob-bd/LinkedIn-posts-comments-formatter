@@ -18,6 +18,24 @@ function injectToolbarStyles() {
         .linkedin-formatter-buttons {
             margin-right: 8px !important;
         }
+        /* Ensure toolbar footer uses flexbox with space-between for left/right alignment */
+        .linkedin-formatter-footer-container {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+        /* Left section for formatting buttons */
+        .linkedin-formatter-left-section {
+            display: flex !important;
+            align-items: center !important;
+            flex: 1 !important;
+        }
+        /* Right section for Post button */
+        .linkedin-formatter-right-section {
+            display: flex !important;
+            align-items: center !important;
+        }
     `;
     document.head.appendChild(style);
 }
@@ -1042,19 +1060,133 @@ function attachFormatter(editor) {
                        editor.getAttribute('placeholder')?.includes('talk about') ||
                        editor.getAttribute('aria-label')?.includes('post');
 
-    // Find the emoji button to insert our buttons right before it
-    const emojiButton = toolbar.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
+    // For main posts, restructure to align formatting buttons left with Post button on right
+    if (isMainPost) {
+        // Find the Post button - search in toolbar and its siblings
+        let postButton = null;
+        let footerContainer = toolbar.parentElement;
+        
+        // Search for Post button in toolbar first
+        const toolbarButtons = toolbar.querySelectorAll('button');
+        for (const btn of toolbarButtons) {
+            const text = btn.textContent?.trim();
+            const ariaLabel = btn.getAttribute('aria-label');
+            if (text === 'Post' || ariaLabel?.includes('Post') ||
+                btn.className?.includes('share-actions__primary') ||
+                btn.className?.includes('primary-action')) {
+                postButton = btn;
+                break;
+            }
+        }
 
-    // Don't modify toolbar layout - keep buttons inline
+        // If not found in toolbar, search in parent container and siblings
+        if (!postButton) {
+            let searchContainer = toolbar.parentElement;
+            for (let i = 0; i < 5 && searchContainer && searchContainer !== document.body; i++) {
+                const allButtons = searchContainer.querySelectorAll('button');
+                for (const btn of allButtons) {
+                    const text = btn.textContent?.trim();
+                    const ariaLabel = btn.getAttribute('aria-label');
+                    if (text === 'Post' || ariaLabel?.includes('Post') ||
+                        btn.className?.includes('share-actions__primary') ||
+                        btn.className?.includes('primary-action')) {
+                        postButton = btn;
+                        footerContainer = searchContainer;
+                        break;
+                    }
+                }
+                if (postButton) break;
+                searchContainer = searchContainer.parentElement;
+            }
+        }
 
-    // Always insert at the beginning for left alignment
-    try {
-        log('Inserting buttons at beginning of toolbar');
-        toolbar.insertBefore(formattingButtons, toolbar.firstChild);
-        log('✅ Formatting buttons inserted successfully');
-    } catch (error) {
-        logError('❌ Error inserting buttons:', error);
-        return;
+        if (postButton && footerContainer && footerContainer !== document.body) {
+            // Ensure footer container uses flexbox with space-between
+            footerContainer.classList.add('linkedin-formatter-footer-container');
+            footerContainer.style.display = 'flex';
+            footerContainer.style.justifyContent = 'space-between';
+            footerContainer.style.alignItems = 'center';
+            footerContainer.style.width = '100%';
+
+            // Check if we've already created sections
+            let leftSection = footerContainer.querySelector('.linkedin-formatter-left-section');
+            let rightSection = footerContainer.querySelector('.linkedin-formatter-right-section');
+
+            if (!leftSection || !rightSection) {
+                // First time setup - restructure the footer
+                // Create left section for formatting buttons and existing toolbar items
+                leftSection = document.createElement('div');
+                leftSection.className = 'linkedin-formatter-left-section';
+                leftSection.style.display = 'flex';
+                leftSection.style.alignItems = 'center';
+                leftSection.style.flex = '1';
+
+                // Create right section for Post button
+                rightSection = document.createElement('div');
+                rightSection.className = 'linkedin-formatter-right-section';
+                rightSection.style.display = 'flex';
+                rightSection.style.alignItems = 'center';
+
+                // Collect all direct children of footerContainer to reorganize
+                const footerChildren = Array.from(footerContainer.children);
+                
+                // Move toolbar and other non-Post elements to left section
+                footerChildren.forEach(child => {
+                    if (child.contains(postButton)) {
+                        // This child contains Post button, move to right section
+                        footerContainer.removeChild(child);
+                        rightSection.appendChild(child);
+                    } else if (child === toolbar || child.contains(toolbar)) {
+                        // This is the toolbar or contains toolbar, move to left section
+                        footerContainer.removeChild(child);
+                        leftSection.appendChild(child);
+                    } else if (!child.classList.contains('linkedin-formatter-left-section') &&
+                               !child.classList.contains('linkedin-formatter-right-section')) {
+                        // Other elements go to left section
+                        footerContainer.removeChild(child);
+                        leftSection.appendChild(child);
+                    }
+                });
+
+                // Add sections to footer
+                footerContainer.appendChild(leftSection);
+                footerContainer.appendChild(rightSection);
+            } else {
+                // Sections already exist, ensure they're still properly styled
+                leftSection = footerContainer.querySelector('.linkedin-formatter-left-section');
+                rightSection = footerContainer.querySelector('.linkedin-formatter-right-section');
+            }
+
+            // Insert formatting buttons into the toolbar (which should be in leftSection)
+            // The toolbar reference is still valid
+            if (leftSection && leftSection.contains(toolbar)) {
+                toolbar.insertBefore(formattingButtons, toolbar.firstChild);
+            } else if (leftSection) {
+                // Toolbar might be nested, find it or insert at start of left section
+                const nestedToolbar = leftSection.contains(toolbar) ? toolbar : leftSection.querySelector('div') || leftSection;
+                nestedToolbar.insertBefore(formattingButtons, nestedToolbar.firstChild);
+            } else {
+                // Fallback: insert into toolbar directly
+                toolbar.insertBefore(formattingButtons, toolbar.firstChild);
+            }
+            log('✅ Formatting buttons inserted in left section, aligned with Post button');
+        } else {
+            // Fallback: ensure toolbar uses flex and insert at beginning
+            toolbar.style.display = 'flex';
+            toolbar.style.justifyContent = 'flex-start';
+            toolbar.style.alignItems = 'center';
+            toolbar.insertBefore(formattingButtons, toolbar.firstChild);
+            log('✅ Formatting buttons inserted (fallback - Post button not found)');
+        }
+    } else {
+        // For comments/replies, use simple insertion
+        const emojiButton = toolbar.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
+        if (emojiButton) {
+            toolbar.insertBefore(formattingButtons, emojiButton);
+        } else {
+            toolbar.insertBefore(formattingButtons, toolbar.firstChild);
+        }
+        log('✅ Formatting buttons inserted for comment/reply');
     }
 
     // Set up removal observer
