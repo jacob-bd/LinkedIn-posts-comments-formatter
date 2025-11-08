@@ -480,100 +480,107 @@ function isPostContext(element) {
 function findLinkedInToolbar(editor) {
     console.log('Finding toolbar for editor:', editor);
 
-    // Determine if this is a main post or a comment
-    const isMainPost = editor.closest('[role="dialog"]') || editor.getAttribute('placeholder')?.includes('talk about');
-    const isComment = editor.closest('.comments-comment-box, [class*="comment"]') || editor.getAttribute('placeholder')?.includes('comment');
+    // First determine if this is a main post or a comment
+    const isMainPost = editor.closest('[role="dialog"]') ||
+                       editor.getAttribute('placeholder')?.includes('talk about') ||
+                       editor.getAttribute('aria-label')?.includes('post');
 
-    console.log('Editor type:', isMainPost ? 'Main Post' : isComment ? 'Comment' : 'Unknown');
+    console.log('Context:', isMainPost ? 'MAIN POST' : 'COMMENT/REPLY');
 
     let searchContainer = editor;
 
-    // Go up a few levels to find a reasonable search scope
-    for (let i = 0; i < 5; i++) {
+    // Go up several levels to find a reasonable search scope
+    for (let i = 0; i < 10; i++) {
         if (searchContainer.parentElement) {
             searchContainer = searchContainer.parentElement;
         }
     }
 
-    // For main posts, look for the footer with the Post button
+    // SPECIAL HANDLING FOR MAIN POSTS - Find the Post button footer
     if (isMainPost) {
-        console.log('Looking for main post footer toolbar');
+        console.log('Main post detected - looking for Post button footer');
 
-        // Look for the Post button using multiple strategies
-        const postButtons = searchContainer.querySelectorAll('button');
+        // Find the Post button
+        const allButtons = searchContainer.querySelectorAll('button');
         let postButton = null;
 
-        for (const btn of postButtons) {
+        for (const btn of allButtons) {
             const text = btn.textContent?.trim();
             const ariaLabel = btn.getAttribute('aria-label');
 
-            // Check if this is the Post button
             if (text === 'Post' ||
-                text === 'Share' ||
                 ariaLabel?.includes('Post') ||
                 btn.className?.includes('share-actions__primary') ||
-                btn.className?.includes('share-box-footer__primary-btn')) {
+                btn.className?.includes('primary-action')) {
                 postButton = btn;
-                console.log('Found post button with text:', text, 'aria-label:', ariaLabel);
+                console.log('Found Post button:', text);
                 break;
             }
         }
 
         if (postButton) {
-            // Find the footer that contains the post button
-            let footer = postButton.closest('[class*="footer"], [class*="share-box-footer"], [class*="share-actions"]');
+            // Find the footer container that has the Post button
+            let footer = postButton.parentElement;
+
+            // Go up to find the actual footer container
+            while (footer && !footer.className?.includes('footer') &&
+                   !footer.className?.includes('share-box__bottom') &&
+                   !footer.className?.includes('share-actions')) {
+                footer = footer.parentElement;
+            }
+
             if (footer) {
-                console.log('Found footer element:', footer.className);
+                console.log('Found footer with Post button:', footer.className);
 
-                // Look for the container with emoji/image buttons
-                // First try to find the emoji button in the footer
-                const footerEmojiButton = footer.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
-                if (footerEmojiButton) {
-                    const emojiContainer = footerEmojiButton.parentElement;
-                    console.log('✅ Found emoji button container in footer');
-                    return emojiContainer;
-                }
+                // Find or create a container for our buttons in the footer
+                // Look for child divs that might contain action buttons
+                const childDivs = footer.querySelectorAll('div');
 
-                // Look for the left section of the footer (where emoji/image buttons typically are)
-                const leftSection = footer.querySelector('[class*="actions-left"], [class*="share-box-footer__actions"], [class*="share-creation"]');
-                if (leftSection) {
-                    console.log('✅ Found main post footer left section');
-                    return leftSection;
-                }
+                for (const div of childDivs) {
+                    // Skip if this div contains the Post button
+                    if (div.contains(postButton)) {
+                        continue;
+                    }
 
-                // Try to find any div that contains buttons but not the Post button
-                const buttonContainers = footer.querySelectorAll('div');
-                for (const container of buttonContainers) {
-                    // Check if this container has buttons but not the Post button
-                    const hasButtons = container.querySelector('button');
-                    const hasPostButton = container.contains(postButton);
-
-                    if (hasButtons && !hasPostButton && container.children.length > 0) {
-                        console.log('✅ Found button container in footer (without Post button)');
-                        return container;
+                    // Check if this div has buttons (likely the action area)
+                    const hasButtons = div.querySelector('button');
+                    if (hasButtons) {
+                        console.log('✅ Found action button area in footer');
+                        return div;
                     }
                 }
 
-                console.log('✅ Using main post footer as fallback');
+                // If no action area found, use the footer itself
+                console.log('✅ Using footer container for main post');
                 return footer;
             }
         }
+    }
 
-        // Alternative: Look for the modal footer structure
-        const modalFooter = searchContainer.querySelector('.share-creation-state__footer, [class*="share-box"][class*="footer"]');
-        if (modalFooter) {
-            console.log('✅ Found modal footer');
-            return modalFooter;
+    // FOR COMMENTS AND REPLIES - Use the emoji button parent (KEEP AS IS - IT'S WORKING!)
+    console.log('Looking for emoji button for comment/reply');
+
+    // Try multiple emoji button selectors
+    const emojiSelectors = [
+        'button[aria-label*="emoji" i]',
+        'button[aria-label*="Emoji" i]',
+        'button[aria-label*="Open emoji" i]',
+        'button[aria-label*="Add an emoji" i]',
+        'button[aria-label*="Insert an emoji" i]'
+    ];
+
+    let emojiButton = null;
+    for (const selector of emojiSelectors) {
+        emojiButton = searchContainer.querySelector(selector);
+        if (emojiButton) {
+            console.log(`Found emoji button with selector: ${selector}`);
+            break;
         }
     }
 
-    // For comments and replies, use the emoji button parent (current working approach)
-    const emojiButton = searchContainer.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
-
     if (emojiButton) {
-        console.log('Found emoji button:', emojiButton.getAttribute('aria-label'));
         const toolbar = emojiButton.parentElement;
-        console.log('✅ Using emoji button parent as toolbar');
+        console.log('✅ Using emoji button parent as toolbar (comment/reply)');
         return toolbar;
     }
 
@@ -581,7 +588,7 @@ function findLinkedInToolbar(editor) {
     const imageButton = searchContainer.querySelector('button[aria-label*="photo" i], button[aria-label*="image" i], button[aria-label*="Add a" i]');
 
     if (imageButton) {
-        console.log('Found image button:', imageButton.getAttribute('aria-label'));
+        console.log('Found image button as fallback:', imageButton.getAttribute('aria-label'));
         const toolbar = imageButton.parentElement;
         console.log('✅ Using image button parent as toolbar');
         return toolbar;
@@ -628,15 +635,26 @@ function attachFormatter(editor) {
     const formattingButtons = createFormattingButtons();
     state.formattingBars.set(editor, formattingButtons);
 
+    // Determine if this is a main post for special insertion logic
+    const isMainPost = editor.closest('[role="dialog"]') ||
+                       editor.getAttribute('placeholder')?.includes('talk about') ||
+                       editor.getAttribute('aria-label')?.includes('post');
+
     // Find the emoji button to insert our buttons right before it
     const emojiButton = toolbar.querySelector('button[aria-label*="emoji" i], button[aria-label*="Emoji" i]');
 
-    // Insert buttons right before emoji button if found, otherwise at beginning
+    // Insert buttons with appropriate placement
     try {
-        if (emojiButton) {
+        if (isMainPost && !emojiButton) {
+            // For main posts without emoji button, insert at the beginning
+            console.log('Main post footer - inserting at beginning');
+            toolbar.insertBefore(formattingButtons, toolbar.firstChild);
+        } else if (emojiButton) {
+            // Insert before emoji button (works for both comments and posts with emoji)
             console.log('Inserting buttons before emoji button');
             toolbar.insertBefore(formattingButtons, emojiButton);
         } else {
+            // Default: insert at beginning
             console.log('No emoji button found, inserting at beginning');
             toolbar.insertBefore(formattingButtons, toolbar.firstChild);
         }
