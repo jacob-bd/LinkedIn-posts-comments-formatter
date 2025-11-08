@@ -132,6 +132,94 @@ function debounce(func, wait) {
     };
 }
 
+// Helper function to check if a character is a Unicode formatted character
+function isUnicodeFormattedChar(char) {
+    const codePoint = char.codePointAt(0);
+    
+    // Check all Unicode formatting ranges
+    return (
+        // Bold: U+1D5D4-U+1D607, U+1D7EC-U+1D7F5
+        (codePoint >= 0x1D5D4 && codePoint <= 0x1D607) || (codePoint >= 0x1D7EC && codePoint <= 0x1D7F5) ||
+        // Italic: U+1D608-U+1D63B
+        (codePoint >= 0x1D608 && codePoint <= 0x1D63B) ||
+        // Bold Italic: U+1D63C-U+1D66F
+        (codePoint >= 0x1D63C && codePoint <= 0x1D66F) ||
+        // Monospace: U+1D670-U+1D6A3, U+1D7F6-U+1D7FF
+        (codePoint >= 0x1D670 && codePoint <= 0x1D6A3) || (codePoint >= 0x1D7F6 && codePoint <= 0x1D7FF) ||
+        // Sans-serif: U+1D5A0-U+1D5B9, U+1D5BA-U+1D5D3, U+1D7E2-U+1D7EB
+        (codePoint >= 0x1D5A0 && codePoint <= 0x1D5B9) || (codePoint >= 0x1D5BA && codePoint <= 0x1D5D3) || (codePoint >= 0x1D7E2 && codePoint <= 0x1D7EB) ||
+        // Script: U+1D49C-U+1D4CF, U+1D4B6-U+1D4E9
+        (codePoint >= 0x1D49C && codePoint <= 0x1D4CF) || (codePoint >= 0x1D4B6 && codePoint <= 0x1D4E9) ||
+        // Circled: U+24B6-U+24CF, U+24D0-U+24E9, U+24EA, U+2460-U+2468
+        (codePoint >= 0x24B6 && codePoint <= 0x24CF) || (codePoint >= 0x24D0 && codePoint <= 0x24E9) || 
+        codePoint === 0x24EA || (codePoint >= 0x2460 && codePoint <= 0x2468) ||
+        // Negative Circled: U+1F150-U+1F169
+        (codePoint >= 0x1F150 && codePoint <= 0x1F169) ||
+        // Squared: U+1F130-U+1F149
+        (codePoint >= 0x1F130 && codePoint <= 0x1F149) ||
+        // Fullwidth: U+FF21-U+FF3A, U+FF41-U+FF5A, U+FF10-U+FF19, U+3000
+        (codePoint >= 0xFF21 && codePoint <= 0xFF3A) || (codePoint >= 0xFF41 && codePoint <= 0xFF5A) ||
+        (codePoint >= 0xFF10 && codePoint <= 0xFF19) || codePoint === 0x3000
+    );
+}
+
+// Helper function to convert a Unicode formatted character back to plain ASCII
+function unicodeToPlainChar(char) {
+    const codePoint = char.codePointAt(0);
+    
+    // Bold: U+1D5D4-U+1D607, U+1D7EC-U+1D7F5
+    if (codePoint >= 0x1D5D4 && codePoint <= 0x1D5ED) return String.fromCharCode(65 + (codePoint - 0x1D5D4));
+    if (codePoint >= 0x1D5EE && codePoint <= 0x1D607) return String.fromCharCode(97 + (codePoint - 0x1D5EE));
+    if (codePoint >= 0x1D7EC && codePoint <= 0x1D7F5) return String.fromCharCode(48 + (codePoint - 0x1D7EC));
+    
+    // Italic: U+1D608-U+1D63B
+    if (codePoint >= 0x1D608 && codePoint <= 0x1D621) return String.fromCharCode(65 + (codePoint - 0x1D608));
+    if (codePoint >= 0x1D622 && codePoint <= 0x1D63B) return String.fromCharCode(97 + (codePoint - 0x1D622));
+    
+    // Bold Italic: U+1D63C-U+1D66F
+    if (codePoint >= 0x1D63C && codePoint <= 0x1D655) return String.fromCharCode(65 + (codePoint - 0x1D63C));
+    if (codePoint >= 0x1D656 && codePoint <= 0x1D66F) return String.fromCharCode(97 + (codePoint - 0x1D656));
+    
+    // Monospace: U+1D670-U+1D6A3, U+1D7F6-U+1D7FF
+    if (codePoint >= 0x1D670 && codePoint <= 0x1D689) return String.fromCharCode(65 + (codePoint - 0x1D670));
+    if (codePoint >= 0x1D68A && codePoint <= 0x1D6A3) return String.fromCharCode(97 + (codePoint - 0x1D68A));
+    if (codePoint >= 0x1D7F6 && codePoint <= 0x1D7FF) return String.fromCharCode(48 + (codePoint - 0x1D7F6));
+    
+    // Sans-serif: U+1D5A0-U+1D5B9, U+1D5BA-U+1D5D3, U+1D7E2-U+1D7EB
+    if (codePoint >= 0x1D5A0 && codePoint <= 0x1D5B9) return String.fromCharCode(65 + (codePoint - 0x1D5A0));
+    if (codePoint >= 0x1D5BA && codePoint <= 0x1D5D3) return String.fromCharCode(97 + (codePoint - 0x1D5BA));
+    if (codePoint >= 0x1D7E2 && codePoint <= 0x1D7EB) return String.fromCharCode(48 + (codePoint - 0x1D7E2));
+    
+    // Script: U+1D49C-U+1D4CF, U+1D4B6-U+1D4E9
+    if (codePoint >= 0x1D49C && codePoint <= 0x1D4CF) return String.fromCharCode(65 + (codePoint - 0x1D49C));
+    if (codePoint >= 0x1D4B6 && codePoint <= 0x1D4E9) return String.fromCharCode(97 + (codePoint - 0x1D4B6));
+    
+    // Circled: U+24B6-U+24CF, U+24D0-U+24E9, U+24EA, U+2460-U+2468
+    if (codePoint >= 0x24B6 && codePoint <= 0x24CF) return String.fromCharCode(65 + (codePoint - 0x24B6));
+    if (codePoint >= 0x24D0 && codePoint <= 0x24E9) return String.fromCharCode(97 + (codePoint - 0x24D0));
+    if (codePoint === 0x24EA) return '0';
+    if (codePoint >= 0x2460 && codePoint <= 0x2468) return String.fromCharCode(49 + (codePoint - 0x2460));
+    
+    // Negative Circled: U+1F150-U+1F169
+    if (codePoint >= 0x1F150 && codePoint <= 0x1F169) return String.fromCharCode(65 + (codePoint - 0x1F150));
+    
+    // Squared: U+1F130-U+1F149
+    if (codePoint >= 0x1F130 && codePoint <= 0x1F149) return String.fromCharCode(65 + (codePoint - 0x1F130));
+    
+    // Fullwidth: U+FF21-U+FF3A, U+FF41-U+FF5A, U+FF10-U+FF19, U+3000
+    if (codePoint >= 0xFF21 && codePoint <= 0xFF3A) return String.fromCharCode(65 + (codePoint - 0xFF21));
+    if (codePoint >= 0xFF41 && codePoint <= 0xFF5A) return String.fromCharCode(97 + (codePoint - 0xFF41));
+    if (codePoint >= 0xFF10 && codePoint <= 0xFF19) return String.fromCharCode(48 + (codePoint - 0xFF10));
+    if (codePoint === 0x3000) return ' ';
+    
+    // Check reverse maps for legacy support
+    if (reverseBoldMap[char]) return reverseBoldMap[char];
+    if (reverseItalicMap[char]) return reverseItalicMap[char];
+    if (reverseBoldItalicMap[char]) return reverseBoldItalicMap[char];
+    
+    return char; // Not a Unicode formatted character
+}
+
 // Enhanced Unicode conversion using character code ranges
 function convertToUnicode(text, style) {
     // Special case for circled text
@@ -262,7 +350,11 @@ function convertToUnicode(text, style) {
             if (char === ' ' || char === '\n' || char === '\r') {
                 result += char;
             } else {
-                result += char + range.combiningChar;
+                // If character is already Unicode formatted, convert it back to plain ASCII first
+                // This prevents combining characters from being attached to Unicode characters
+                // which causes rendering issues (diamond-question-mark characters)
+                const plainChar = isUnicodeFormattedChar(char) ? unicodeToPlainChar(char) : char;
+                result += plainChar + range.combiningChar;
             }
         }
         return result;
@@ -788,14 +880,20 @@ function formatText(action) {
             action === 'monospace' || action === 'strikethrough' || action === 'underline' ||
             action === 'sansSerif' || action === 'script' || action === 'circled' ||
             action === 'negativeCircled' || action === 'squared' || action === 'fullwidth') {
-            // Check if already formatted
-            if (isFormatted(selectedText, action)) {
-                // Remove formatting
-                formattedText = removeFormatting(selectedText, action);
-                log('Removing formatting:', action);
+            // Check if the specific format is already applied (for toggle behavior)
+            const alreadyFormatted = isFormatted(selectedText, action);
+            
+            // Always clear all formatting first to prevent conflicts between different formats
+            // This ensures clean state before applying new format
+            let plainText = clearFormatting(selectedText);
+            
+            if (alreadyFormatted) {
+                // Toggle off: format was already applied, so just return plain text
+                formattedText = plainText;
+                log('Removing formatting (toggle off):', action);
             } else {
-                // Add formatting using enhanced Unicode conversion
-                formattedText = convertToUnicode(selectedText, action);
+                // Toggle on: apply the new format to plain text
+                formattedText = convertToUnicode(plainText, action);
                 log('Adding formatting:', action);
             }
         } else if (action === 'bullet') {
