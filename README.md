@@ -114,43 +114,13 @@ If you have questions about privacy, please open an issue on GitHub or contact t
 
 ## 🛠️ Development
 
-### Prerequisites
-- Node.js (for running tests)
-- Chrome browser
-
-### Setup
-```bash
-# Clone the repository
-git clone https://github.com/jacob-bd/LinkedIn-Post-Formatter.git
-cd LinkedIn-Post-Formatter
-
-# Install test dependencies (optional)
-npm install
-
-# Run tests
-npm test
-```
-
 ### Project Structure
 ```
 ├── manifest.json          # Extension manifest (Chrome Web Store config)
 ├── background.js          # Background service worker
 ├── content.js            # Main content script (formatting logic)
 ├── icon-*.png            # Extension icons
-├── tests/                # Unit tests (excluded from git)
 └── README.md             # This file
-```
-
-### Testing
-```bash
-# Run all tests
-npm test
-
-# Watch mode (auto-rerun on changes)
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
 ```
 
 ## 🤝 Contributing
@@ -165,9 +135,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Development Guidelines
 - Follow existing code style
-- Add tests for new features
 - Update README if needed
-- Ensure all tests pass before submitting
+- Test manually before submitting
 
 ## 📝 License
 
