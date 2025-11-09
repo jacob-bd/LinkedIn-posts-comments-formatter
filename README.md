@@ -1,4 +1,4 @@
-# LinkedIn Post Formatter
+# LinkedIn Posts & Comments Formatter
 <img width="1280" height="800" alt="Main" src="https://github.com/user-attachments/assets/68e83eab-d43a-4387-a51b-2e4ec0e6bd34" />
 
 A Chrome extension that adds powerful text formatting capabilities to LinkedIn's post editor, allowing you to create beautifully formatted posts with Unicode styling, bullets, and numbered lists.
@@ -106,7 +106,7 @@ This extension does not use any third-party analytics, tracking, or data collect
 
 ### Your Rights
 You can:
-- View stored data: `chrome://extensions/` → LinkedIn Post Formatter → Details → "Inspect views: background page" → Application → Storage → Local Storage
+- View stored data: `chrome://extensions/` → LinkedIn Posts & Comments Formatter → Details → "Inspect views: background page" → Application → Storage → Local Storage
 - Clear all data: Uninstall and reinstall the extension
 - Disable the extension at any time
 
@@ -151,7 +151,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/jacob-bd/LinkedIn-Post-Formatter/issues)
+- **Issues**: [GitHub Issues](https://github.com/jacob-bd/LinkedIn-posts-comments-formatter/issues)
 - **Questions**: Open a discussion on GitHub
 
 ## 🔄 Changelog

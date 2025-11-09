@@ -1,4 +1,4 @@
-// LinkedIn Post Formatter - Enhanced Version
+// LinkedIn Posts & Comments Formatter - Enhanced Version
 // Tracks editors and manages formatting functionality
 
 // Debug mode - set to false for production to prevent logging user content

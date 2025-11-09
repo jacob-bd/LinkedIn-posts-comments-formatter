@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn Post Formatter",
+  "name": "LinkedIn Posts & Comments Formatter",
   "version": "1.0.0",
   "description": "Advanced text formatting for LinkedIn posts with Unicode styling (bold, italic, bullets) and keyboard shortcuts",
   "permissions": ["storage", "activeTab", "notifications"],
@@ -30,7 +30,7 @@
     }
   ],
   "action": {
-    "default_title": "LinkedIn Post Formatter",
+    "default_title": "LinkedIn Posts & Comments Formatter",
     "default_icon": {
       "16": "icon-16.png",
       "48": "icon-48.png",

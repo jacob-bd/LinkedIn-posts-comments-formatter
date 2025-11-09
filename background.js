@@ -1,9 +1,9 @@
-// Background Service Worker for LinkedIn Post Formatter
+// Background Service Worker for LinkedIn Posts & Comments Formatter
 // Handles extension lifecycle and communication
 
 // Initialize storage on install
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log('LinkedIn Post Formatter installed:', details.reason);
+  console.log('LinkedIn Posts & Comments Formatter installed:', details.reason);
 
   // Initialize storage
   chrome.storage.local.get(['usage', 'settings'], (result) => {
@@ -34,7 +34,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icon48.png',
-      title: 'LinkedIn Post Formatter Installed',
+      title: 'LinkedIn Posts & Comments Formatter Installed',
       message: 'Keyboard shortcuts: Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline), Ctrl+S (strikethrough). Use buttons for Bold Italic.',
       priority: 1
     });
@@ -83,4 +83,4 @@ chrome.action.onClicked.addListener((tab) => {
   chrome.tabs.sendMessage(tab.id, { action: 'toggle-formatter' });
 });
 
-console.log('LinkedIn Post Formatter background service worker ready');
+console.log('LinkedIn Posts & Comments Formatter background service worker ready');
