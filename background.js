@@ -31,14 +31,13 @@ chrome.runtime.onInstalled.addListener((details) => {
   // Show welcome notification on first install
   if (details.reason === 'install') {
     console.log('First install - welcome message');
-    // Note: Notification currently disabled until icon assets are added
-    // chrome.notifications.create({
-    //   type: 'basic',
-    //   iconUrl: 'icon48.png',
-    //   title: 'LinkedIn Post Formatter Installed',
-    //   message: 'Use Ctrl+B for bold, Ctrl+I for italic in LinkedIn posts!',
-    //   priority: 1
-    // });
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon48.png',
+      title: 'LinkedIn Post Formatter Installed',
+      message: 'Keyboard shortcuts: Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline), Ctrl+S (strikethrough). Use buttons for Bold Italic.',
+      priority: 1
+    });
   }
 });
 

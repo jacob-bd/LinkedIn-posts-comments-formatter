@@ -48,7 +48,8 @@ const state = {
     urlObserver: null,
     urlCheckInterval: null,  // Store interval ID for cleanup
     currentEditor: null,
-    savedSelection: null  // Store selection when opening dropdown
+    savedSelection: null,  // Store selection when opening dropdown
+    keyboardShortcutsEnabled: true  // Cache keyboard shortcuts setting
 };
 
 // Unicode character mapping for text formatting
@@ -712,12 +713,16 @@ function createFormattingButtons() {
         position: relative;
     `;
 
+    // Detect platform for keyboard shortcut display (Mac uses Cmd, others use Ctrl)
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const modifierKey = isMac ? 'Cmd' : 'Ctrl';
+
     const buttons = [
-        { text: 'B', action: 'bold', title: 'Bold (Ctrl+B)' },
-        { text: 'I', action: 'italic', title: 'Italic (Ctrl+I)' },
+        { text: 'B', action: 'bold', title: `Bold (${modifierKey}+B)` },
+        { text: 'I', action: 'italic', title: `Italic (${modifierKey}+I)` },
         { text: 'B/I', action: 'boldItalic', title: 'Bold Italic' },
-        { text: 'S̶', action: 'strikethrough', title: 'Strikethrough' },
-        { text: 'U̲', action: 'underline', title: 'Underline' },
+        { text: 'S̶', action: 'strikethrough', title: `Strikethrough (${modifierKey}+S)` },
+        { text: 'U̲', action: 'underline', title: `Underline (${modifierKey}+U)` },
         { text: 'Aa', action: 'font-dropdown', title: 'Font Style', isDropdown: true },
         { text: '•', action: 'bullet', title: 'Bullet List' },
         { text: '1.', action: 'numbered', title: 'Numbered List' },
@@ -1535,22 +1540,57 @@ function setupObservers() {
 
 // Keyboard shortcuts
 function setupKeyboardShortcuts() {
+    // Load keyboard shortcuts setting on initialization
+    chrome.storage.local.get(['settings'], (result) => {
+        const settings = result.settings || {};
+        state.keyboardShortcutsEnabled = settings.keyboardShortcuts !== false; // Default to true
+    });
+
+    // Listen for settings changes
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local' && changes.settings) {
+            const newSettings = changes.settings.newValue || {};
+            state.keyboardShortcutsEnabled = newSettings.keyboardShortcuts !== false;
+        }
+    });
+
     document.addEventListener('keydown', (e) => {
         // Check if we're in an editor
         if (!state.currentEditor || !state.currentEditor.isContentEditable) {
             return;
         }
 
-        // Ctrl/Cmd + B for bold
-        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-            e.preventDefault();
-            formatText('bold');
+        // Check if keyboard shortcuts are enabled
+        if (!state.keyboardShortcutsEnabled) {
+            return;
         }
 
+        const isModifier = e.ctrlKey || e.metaKey;
+        const isShift = e.shiftKey;
+
+        // Ctrl/Cmd + B for bold
+        if (isModifier && !isShift && e.key === 'b') {
+            e.preventDefault();
+            formatText('bold');
+            trackUsage('bold');
+        }
         // Ctrl/Cmd + I for italic
-        if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        else if (isModifier && !isShift && e.key === 'i') {
             e.preventDefault();
             formatText('italic');
+            trackUsage('italic');
+        }
+        // Ctrl/Cmd + U for underline
+        else if (isModifier && !isShift && e.key === 'u') {
+            e.preventDefault();
+            formatText('underline');
+            trackUsage('underline');
+        }
+        // Ctrl/Cmd + S for strikethrough
+        else if (isModifier && !isShift && e.key === 's') {
+            e.preventDefault();
+            formatText('strikethrough');
+            trackUsage('strikethrough');
         }
     });
 
