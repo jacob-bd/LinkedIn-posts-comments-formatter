@@ -66,7 +66,7 @@ A Chrome extension that adds powerful text formatting capabilities to LinkedIn's
 
 ## 🔒 Privacy Policy
 
-**Last Updated: November 2024**
+**Last Updated: November 2025**
 
 ### Data Collection
 This extension **does not collect, store, or transmit any personal data or user content**. 
