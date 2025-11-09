@@ -4,6 +4,12 @@ A Chrome extension that adds powerful text formatting capabilities to LinkedIn's
 
 ## ✨ Features
 
+### Works Everywhere
+- **Posts** - Format your LinkedIn posts
+- **Comments** - Format comments on posts
+- **Replies** - Format replies to comments
+- Auto-detects and appears in any LinkedIn text editor
+
 ### Text Formatting
 - **Bold** - Make your text stand out
 - **Italic** - Add emphasis to your content
@@ -52,12 +58,17 @@ A Chrome extension that adds powerful text formatting capabilities to LinkedIn's
 
 ## 📖 Usage
 
-1. **Open LinkedIn** and navigate to create a new post
-2. **Click in the post editor** - The formatting toolbar will automatically appear
+1. **Open LinkedIn** and navigate to:
+   - Create a new post, OR
+   - Write a comment on a post, OR
+   - Reply to a comment
+2. **Click in the text editor** - The formatting toolbar will automatically appear
 3. **Type or select your text**
 4. **Click formatting buttons** to apply styles
 5. **Use keyboard shortcuts** for quick formatting
-6. **Post your beautifully formatted content!**
+6. **Post, comment, or reply** with your beautifully formatted content!
+
+**Note:** The formatting toolbar works in all LinkedIn text editors - posts, comments, and replies!
 
 ### Tips
 - Select multiple lines and click the bullet button to create a bullet list
