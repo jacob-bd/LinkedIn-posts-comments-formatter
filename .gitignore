@@ -21,3 +21,13 @@ Thumbs.db
 
 # Publishing folder - contains Chrome Web Store assets
 chrome-store-publishing/
+
+# Testing - DO NOT COMMIT
+node_modules/
+package.json
+package-lock.json
+jest.config.js
+tests/
+src/
+coverage/
+*.test.js
