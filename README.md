@@ -1,5 +1,5 @@
 # LinkedIn Posts & Comments Formatter
-<img width="1280" height="800" alt="Main" src="https://github.com/user-attachments/assets/68e83eab-d43a-4387-a51b-2e4ec0e6bd34" />
+<img width="1280" height="800" alt="Main" src="https://github.com/user-attachments/assets/d4095738-99a6-4a80-a502-b901f9c6ea48" />
 
 A Chrome extension that adds powerful text formatting capabilities to LinkedIn's post editor, allowing you to create beautifully formatted posts with Unicode styling, bullets, and numbered lists.
 
