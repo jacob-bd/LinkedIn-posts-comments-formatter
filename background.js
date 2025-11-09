@@ -77,10 +77,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-// Handle extension icon click
-chrome.action.onClicked.addListener((tab) => {
-  // Send message to content script to show/hide formatter
-  chrome.tabs.sendMessage(tab.id, { action: 'toggle-formatter' });
-});
+// Extension works automatically on LinkedIn - no icon click needed
+// chrome.action.onClicked.addListener((tab) => {
+//   chrome.tabs.sendMessage(tab.id, { action: 'toggle-formatter' });
+// });
 
 console.log('LinkedIn Posts & Comments Formatter background service worker ready');
