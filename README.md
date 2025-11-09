@@ -110,8 +110,8 @@ If you have questions about privacy, please open an issue on GitHub or contact t
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/jacob-bd/LinkedIn-Formatter-CE.git
-cd LinkedIn-Formatter-CE
+git clone https://github.com/jacob-bd/LinkedIn-Post-Formatter.git
+cd LinkedIn-Post-Formatter
 
 # Install test dependencies (optional)
 npm install
@@ -170,25 +170,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/jacob-bd/LinkedIn-Formatter-CE/issues)
+- **Issues**: [GitHub Issues](https://github.com/jacob-bd/LinkedIn-Post-Formatter/issues)
 - **Questions**: Open a discussion on GitHub
 
 ## 🔄 Changelog
 
-### Version 2.0
-- Added keyboard shortcuts (Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+S)
-- Added welcome notification
-- Improved formatting conflict resolution
-- Enhanced clear formatting to support all font styles
-- Performance optimizations
-- Privacy improvements (removed user content from logs)
-
-### Version 1.0
+### Version 1.0.0
 - Initial release
-- Basic formatting (bold, italic, strikethrough, underline)
-- Font styles (7 options)
+- Text formatting (bold, italic, bold italic, strikethrough, underline)
+- Font styles (7 options: Sans-serif, Script, Circled, Negative Circled, Squared, Fullwidth, Monospace)
 - Bullet and numbered lists
-- Clear formatting
+- Clear formatting (removes all formatting)
+- Keyboard shortcuts (Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+S)
+- Welcome notification on first install
+- Performance optimizations
+- Privacy-focused (no user content logging)
 
 ---
 
