@@ -33,7 +33,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     console.log('First install - welcome message');
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icon48.png',
+      iconUrl: 'icon-48.png',
       title: 'LinkedIn Posts & Comments Formatter Installed',
       message: 'Keyboard shortcuts: Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline), Ctrl+S (strikethrough). Use buttons for Bold Italic.',
       priority: 1
