@@ -45,7 +45,7 @@ A Chrome extension that adds powerful text formatting capabilities to LinkedIn's
 ## 🚀 Installation
 
 ### From Chrome Web Store
-1. Visit the [Chrome Web Store listing](https://chrome.google.com/webstore) (coming soon)
+1. Visit the [Chrome Web Store listing](https://chromewebstore.google.com/detail/linkedin-posts-comments-f/dmgfhnhkfkcdelbgdhdabigbcfbfilgi)
 2. Click "Add to Chrome"
 3. Confirm installation
 
