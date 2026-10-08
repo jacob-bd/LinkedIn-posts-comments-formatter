@@ -164,6 +164,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Changelog
 
+### Version 1.3.3
+- Fixed the formatting toolbar covering the writing area in LinkedIn's native post dialog and blocking clicks and typing
+- Kept the post toolbar outside the writing area when LinkedIn redraws the controls
+- Kept the post toolbar visible while scrolling long drafts
+- Fixed formatting a whole-editor selection merging separate paragraphs
+
 ### Version 1.3.2
 - Fixed duplicate formatting toolbar appearing on reply boxes
 - Fixed multi-line formatting (clear, bold, etc.) merging lines into one

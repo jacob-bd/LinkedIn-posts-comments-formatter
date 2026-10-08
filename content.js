@@ -746,7 +746,9 @@ function formatText(action) {
         // range.toString() concatenates text across block boundaries without
         // newlines, so "line1\nline2" becomes "line1line2". Re-extract with
         // line breaks when the selection spans block-level elements.
-        if (!rangeIsEmpty && range.startContainer !== range.endContainer) {
+        // Select-all can use the editor itself for both range endpoints while
+        // still spanning multiple paragraphs. Inspect the fragment in that case too.
+        if (!rangeIsEmpty) {
             const frag = range.cloneContents();
             const tmp = document.createElement('div');
             tmp.appendChild(frag);
@@ -1157,12 +1159,13 @@ function findLinkedInToolbar(editor) {
     //
     // For feed posts, each post is a [role="listitem"] in the feed list.
 
-    const localScopes = [];
+    const dialogScope = editor.closest('dialog, [role="dialog"]');
+    const localScopes = dialogScope ? [dialogScope] : [];
 
     // Strategy 1: TipTap wrapper + walk up to the comment-scope container
     // This is the tightest reliable scope: contains exactly 1 editor, 1 emoji, 1 photo
     const tiptapWrapper = editor.closest('[data-testid="ui-core-tiptap-text-editor-wrapper"]');
-    if (tiptapWrapper) {
+    if (tiptapWrapper && !dialogScope) {
         let commentScope = tiptapWrapper;
         // Walk up 3 parent levels to reach the container holding emoji/photo buttons
         for (let i = 0; i < 3; i++) {
@@ -1185,9 +1188,8 @@ function findLinkedInToolbar(editor) {
     const formScope = editor.closest('form');
     if (formScope) localScopes.push(formScope);
 
-    // Strategy 4: Dialog/modal scope for post creation
-    const dialogScope = editor.closest('[role="dialog"]');
-    if (dialogScope) localScopes.push(dialogScope);
+    // Post dialogs are searched first, including native <dialog> elements
+    // whose implicit role does not match the [role="dialog"] selector.
 
     // Strategy 5: Last resort — walk up 15 parents (broad but covers edge cases)
     let broadContainer = editor;
@@ -1196,7 +1198,7 @@ function findLinkedInToolbar(editor) {
             broadContainer = broadContainer.parentElement;
         }
     }
-    localScopes.push(broadContainer);
+    if (!dialogScope) localScopes.push(broadContainer);
 
     let foundButton = null;
     let selectorUsed = '';
@@ -1216,7 +1218,7 @@ function findLinkedInToolbar(editor) {
     }
 
     // Fall back to root/document search only if all local scopes found nothing
-    if (!foundButton) {
+    if (!foundButton && !dialogScope) {
         log('Local search found nothing, falling back to root search');
         for (const selector of targetSelectors) {
             foundButton = (rootSearchTarget.querySelector && rootSearchTarget.querySelector(selector)) || broadContainer.querySelector(selector);
@@ -1240,7 +1242,7 @@ function findLinkedInToolbar(editor) {
         
         // If it's the bottom row, we want to find the full-width footer container
         // so we can insert the formatting buttons on the far left.
-        if (isBottomRow) {
+        if (isBottomRow && !dialogScope) {
             // Traverse up until we find a container that is nearly the full width of the modal
             // The schedule button is usually in a small right-aligned wrapper.
             let current = toolbar;
@@ -1305,13 +1307,64 @@ function attachFormatter(editor) {
     state.formattingBars.set(editor, formattingButtons);
 
     // Determine if this is a modal editor (main post) or inline (comment/reply)
-    const isModalEditor = !!editor.closest('[role="dialog"]');
+    const dialogScope = editor.closest('dialog, [role="dialog"]');
+    const isModalEditor = !!dialogScope;
     log('Is modal editor:', isModalEditor);
+    let restoreScrollLayout = () => {};
 
-    // === DIRECT INSERTION for all editors ===
-    // We insert directly into the toolbar to keep it inline with native buttons.
+    // Post dialogs need a separate row outside the writing area's grid.
+    // LinkedIn overlays grid children, so inserting beside the editor can
+    // stretch the bar across the entire editor and intercept its clicks.
+    if (isModalEditor) {
+        let controlsContainer = toolbar;
+        while (controlsContainer.parentElement &&
+               controlsContainer.parentElement !== dialogScope &&
+               !controlsContainer.parentElement.contains(editor)) {
+            controlsContainer = controlsContainer.parentElement;
+        }
 
-    if (toolbar._isBottomRow) {
+        if (controlsContainer.contains(editor) || !dialogScope.contains(controlsContainer)) {
+            state.editors.delete(editor);
+            state.formattingBars.delete(editor);
+            logError('Could not find a post controls area separate from the editor');
+            return;
+        }
+
+        formattingButtons.style.setProperty('grid-area', 'auto', 'important');
+        formattingButtons.style.setProperty('align-self', 'flex-start', 'important');
+        formattingButtons.style.setProperty('flex-wrap', 'wrap', 'important');
+        formattingButtons.style.setProperty('margin', '4px 24px', 'important');
+        formattingButtons.style.setProperty('max-width', 'calc(100% - 48px)', 'important');
+        // Keep the row outside the outer shared scroll region so long drafts
+        // cannot push it off-screen. The dialog's column layout reserves space
+        // for the row instead of layering it over editable text.
+        let scrollArea = null;
+        for (let node = controlsContainer.parentElement; node && node !== dialogScope; node = node.parentElement) {
+            if (node.contains(editor) && /^(auto|scroll)$/.test(window.getComputedStyle(node).overflowY)) {
+                scrollArea = node;
+            }
+        }
+        const scrollParentStyle = scrollArea && window.getComputedStyle(scrollArea.parentElement);
+        if (scrollParentStyle?.display.includes('flex') && scrollParentStyle.flexDirection === 'column') {
+            const originalStyles = ['min-height', 'flex'].map(name => [
+                name, scrollArea.style.getPropertyValue(name), scrollArea.style.getPropertyPriority(name)
+            ]);
+            restoreScrollLayout = () => {
+                originalStyles.forEach(([name, value, priority]) => {
+                    if (value) scrollArea.style.setProperty(name, value, priority);
+                    else scrollArea.style.removeProperty(name);
+                });
+            };
+            scrollArea.style.setProperty('min-height', '0', 'important');
+            // Preserve intrinsic height when the dialog itself is auto-sized.
+            scrollArea.style.setProperty('flex', '1 1 auto', 'important');
+            scrollArea.insertAdjacentElement('afterend', formattingButtons);
+            log('✅ Inserted post formatting row outside the scroll region');
+        } else {
+            controlsContainer.insertAdjacentElement('beforebegin', formattingButtons);
+            log('✅ Inserted post formatting row above native controls');
+        }
+    } else if (toolbar._isBottomRow) {
         // We found the full width footer. We want our buttons on the far left, and the native Post button on the far right.
         toolbar.style.setProperty('display', 'flex', 'important');
         toolbar.style.setProperty('justify-content', 'space-between', 'important');
@@ -1346,7 +1399,7 @@ function attachFormatter(editor) {
             // Walk up if the parent is a horizontal flex container.
             // On post detail pages the form sits inside a flex-direction:row parent;
             // inserting our full-width bar there crushes the editor to zero width.
-            const boundary = editor.closest('[role="listitem"], [role="dialog"]') || document.body;
+            const boundary = editor.closest('[role="listitem"], dialog, [role="dialog"]') || document.body;
             let steps = 0;
             while (insertTarget.parentElement && insertTarget.parentElement !== boundary && steps < 5) {
                 const ps = window.getComputedStyle(insertTarget.parentElement);
@@ -1379,6 +1432,7 @@ function attachFormatter(editor) {
     const removalObserver = new MutationObserver(() => {
         if (!editor.isConnected) {
             formattingButtons.remove();
+            restoreScrollLayout();
             state.editors.delete(editor);
             state.formattingBars.delete(editor);
             if (state.currentEditor === editor) {
@@ -1393,12 +1447,13 @@ function attachFormatter(editor) {
             state.editors.delete(editor);
             state.formattingBars.delete(editor);
             formattingButtons.remove();
+            restoreScrollLayout();
             removalObserver.disconnect();
         }
     });
 
     const observerTarget = isModalEditor 
-        ? (editor.closest('[role="dialog"], .share-box, .share-creation-state') || document.body)
+        ? dialogScope
         : (editor._commentScope || editor.closest('[role="listitem"]') || editor.closest('form') || document.body);
         
     removalObserver.observe(observerTarget, { childList: true, subtree: true });
